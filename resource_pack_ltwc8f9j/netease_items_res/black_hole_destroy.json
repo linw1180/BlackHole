@@ -1,0 +1,13 @@
+{
+  "format_version": "1.10",
+  "minecraft:item": {
+    "description": {
+      "identifier": "black_hole:black_hole_destroy",
+      "category": "Items"
+    },
+
+    "components": {
+      "minecraft:icon": "black_hole:black_hole_destroy"
+    }
+  }
+}

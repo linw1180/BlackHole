@@ -1,0 +1,31 @@
+{
+  "header": {
+    "uuid": "2c128776-894a-4edd-a3c1-ca7493f3b5a6", 
+    "description": "黑洞 by黑曜石工作室", 
+    "min_engine_version": [
+      1, 
+      8, 
+      0
+    ], 
+    "name": "BlackHole", 
+    "version": [
+      1, 
+      0, 
+      0
+    ]
+  }, 
+  "modules": [
+    {
+      "uuid": "82c82f9a-019e-4af6-ad8c-e7bf1e472e59", 
+      "description": "黑洞 by黑曜石工作室", 
+      "type": "resources", 
+      "version": [
+        1, 
+        0, 
+        0
+      ]
+    }
+  ], 
+  "format_version": 1, 
+  "dependencies": null
+}

@@ -1,0 +1,55 @@
+{
+    "particleeffect": {
+        "depthtest": {
+            "enable": "true"
+        },
+        "direction": {
+            "max": "0.0 0.0 0.0",
+            "min": "0.0 0.0 0.0",
+            "value": "Direction"
+        },
+        "emitterScaleCurve": [
+
+        ],
+        "emitterscale": [
+
+        ],
+        "emittersize": {
+            "value": "0.0 0.0 0.0"
+        },
+        "emittertype": {
+            "value": "Sphere"
+        },
+        "enablecolor": {
+            "enable": "false"
+        },
+        "numparticles": {
+            "value": "1"
+        },
+        "particlesize": {
+            "max": "1.0 1.0",
+            "min": "1.0 1.0"
+        },
+        "relative": {
+            "enable": "true"
+        },
+        "rotation": {
+            "max": "15.0",
+            "min": "15.0"
+        },
+        "rotationspeed": {
+            "max": "15.0",
+            "min": "15.0"
+        },
+        "texture": {
+            "name": "textures/particle/black_hole"
+        },
+        "thickness": {
+            "value": "0.0"
+        },
+        "timetolive": {
+            "max": "100000.0",
+            "min": "100000.0"
+        }
+    }
+}

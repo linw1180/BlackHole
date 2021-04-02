@@ -1,0 +1,41 @@
+{
+  "header": {
+    "uuid": "985c13fc-aced-41d7-9a89-dc942be2b89d", 
+    "description": "黑洞 by黑曜石工作室", 
+    "min_engine_version": [
+      1, 
+      8, 
+      0
+    ], 
+    "name": "BlackHole", 
+    "version": [
+      1, 
+      0, 
+      0
+    ]
+  }, 
+  "modules": [
+    {
+      "uuid": "feeca2a7-112f-42d3-b5ec-c230bfc45b83", 
+      "description": "黑洞 by黑曜石工作室", 
+      "type": "data", 
+      "version": [
+        1, 
+        0, 
+        0
+      ]
+    }
+  ], 
+  "format_version": 1, 
+  "dependencies": [
+    {
+      "uuid": "2c128776-894a-4edd-a3c1-ca7493f3b5a6", 
+      "description": "黑洞 by黑曜石工作室", 
+      "version": [
+        1, 
+        0, 
+        0
+      ]
+    }
+  ]
+}

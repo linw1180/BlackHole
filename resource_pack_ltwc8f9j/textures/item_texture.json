@@ -1,0 +1,13 @@
+{
+  "resource_pack_name": "vanilla",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "black_hole:black_hole_create": {
+      "textures": "textures/items/black_hole_create"
+    },
+    "black_hole:black_hole_destroy": {
+      "textures": "textures/items/black_hole_destroy"
+    }
+
+  }
+}
