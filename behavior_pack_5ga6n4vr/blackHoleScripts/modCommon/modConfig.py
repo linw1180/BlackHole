@@ -18,6 +18,6 @@ ModClientSystemPath = 'blackHoleScripts.modClient.clientSystem.BlackHoleClientSy
 
 # Server Event
 # engine
-ServerItemTryUseEvent = 'ServerItemTryUseEvent'
+ServerBlockUseEvent = 'ServerBlockUseEvent'
 # custom
 CreateEffectEvent = 'CreateEffectEvent'
