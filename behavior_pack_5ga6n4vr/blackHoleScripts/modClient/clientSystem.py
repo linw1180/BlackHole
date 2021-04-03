@@ -38,7 +38,7 @@ class BlackHoleClientSystem(ClientSystem):
         comp = clientApi.GetEngineCompFactory().CreateItem(playerId)
         carriedData = comp.GetCarriedItem()
         itemName = carriedData["itemName"]
-        # 此处进行判断，若玩家使用的手持物品为黑洞制造器，则进行指定位置的黑洞特效创建
+        # 此处进行判断，若玩家使用的手持物品为黑洞制造器，则调用方法进行指定位置的黑洞特效创建
         if itemName == "black_hole:black_hole_create":
             self.createParticle(args)
         else:
@@ -49,9 +49,8 @@ class BlackHoleClientSystem(ClientSystem):
         logger.info("333333333333333333333333333 %s" % args)
 
         # 固定位置播放======================================================================
-        # 获取传过来的dict中玩家ID和点击方块的位置信息
-        entityId = args["playerId"]
-        logger.info('-------------------------------------------- entityId = %s' % entityId)
+
+        # 获取传过来的dict中点击方块的位置信息
         x = args['x']
         y = args['y']
         z = args['z']
@@ -59,27 +58,13 @@ class BlackHoleClientSystem(ClientSystem):
         logger.info('-------------------------------------------- y = %d' % y)
         logger.info('-------------------------------------------- z = %d' % z)
 
-        # 获取实体位置pos（实体坐标） tuple(float, float, float)
-        pos_comp = clientApi.GetEngineCompFactory().CreatePos(entityId)
-        pos = pos_comp.GetPos()
-        # 获取实体角度rot（俯仰角度以及绕竖直方向的角度） tuple(float, float)
-        rot_comp = clientApi.GetEngineCompFactory().CreateRot(entityId)
-        rot = rot_comp.GetRot()
-
-        # 先用转轴公式算出新位置坐标，再从配置文件读取特效
-        # offset = (0, -0.5, 4)  # 这里用的自定义的
-        # pos = apiUtil.get_new_pos(pos, rot, offset)
+        # 获取位置pos（实体坐标） tuple(float, float, float)
+        # 获取角度rot（俯仰角度以及绕竖直方向的角度） tuple(float, float)
         pos = (x + 0.5, y + 0.5, z + 0.5)
         rot = (90, 0, 0)  # 这里用的自定义的
         particleEntityId = self.CreateEngineParticle("effects/black_hole.json", pos)
         particle_comp = clientApi.GetEngineCompFactory().CreateParticleTrans(particleEntityId)
         particle_comp.SetRot(rot)
-
-
-        # 可绑定entity（但此处不适用）
-        # entityId = args["playerId"]
-        # comp = clientApi.GetEngineCompFactory().CreateParticleEntityBind(particleEntityId)
-        # comp.Bind(entityId, (0, 1, 0), (0, 0, 0))
 
         # 播放特效
         logger.info("------------------------------> particleEntityId = %s" % particleEntityId)
