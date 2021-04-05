@@ -27,8 +27,8 @@
             "value": "1"
         },
         "particlesize": {
-            "max": "1.0 1.0",
-            "min": "1.0 1.0"
+            "max": "3.0 3.0",
+            "min": "3.0 3.0"
         },
         "relative": {
             "enable": "true"
