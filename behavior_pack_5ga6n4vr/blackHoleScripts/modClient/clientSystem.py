@@ -44,8 +44,13 @@ class BlackHoleClientSystem(ClientSystem):
         else:
             logger.info("=== only use black_hole_create can give you the sight ===")
 
-    # 创建粒子特效
+    # 在指定点击位置创建粒子特效
     def createParticle(self, args):
+        """
+        在指定点击位置创建粒子特效
+        :param args: 玩家ID，方块命名空间和方块位置信息
+        :return:
+        """
         logger.info("333333333333333333333333333 %s" % args)
 
         # 固定位置播放======================================================================
