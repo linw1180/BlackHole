@@ -59,16 +59,41 @@ class BlackHoleServerSystem(ServerSystem):
         evenData['blockName'] = args['blockName']
         # 广播CreateEffectEvent事件通知客户端创建特效
         self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
+        print '----------------------------------------------  (x, y, z) = ', (args['x'], args['y'], args['z'])
 
         # 测试
         # self.blockStart(evenData)
 
-        # 控制是否调用=============================================================
+        # ---------------------将指定位置方块替换为空气，在其位置创建/掉落原实体方块--------------------------------
+        playerId = args["playerId"]
+        blockPos = (args["x"] + 5, args["y"] + 5, args["z"])  # ------------------
+        levelId = serverApi.GetLevelId()
+        blockName = args['blockName']
+        comp = serverApi.GetEngineCompFactory().CreateBlockInfo(playerId)  # 此处playerId为block的设置者
+        # === 将原方块直接替换为空气 ===
+        blockDict = {
+            'name': 'minecraft:air'
+        }
+        comp.SetBlockNew(blockPos, blockDict, 0)
+
+        # 在被替换为空气位置处，创建物品实体（即掉落物），返回物品实体的entityId
+        itemDict = {
+            # 'itemName': 'minecraft:grass',
+            'itemName': blockName,
+            'count': 1
+        }
+        itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
+        print '------------------------------------------------888 itemEntityId = ', itemEntityId
+        # ------------------------------------------------------------------
+
+        # 打标记，控制是否tick调用=============================================================
         self.flag = True
+
         self.dict['playerId'] = args["playerId"]
         self.dict['x'] = args["x"]
         self.dict['y'] = args["y"]
         self.dict['z'] = args["z"]
+        self.dict['blockName'] = args['blockName']
 
     # 服务器tick时触发,1秒有30个tick
     def OnScriptTickServer(self):
@@ -139,19 +164,32 @@ class BlackHoleServerSystem(ServerSystem):
     # 方块物品先搁置，先实现生物这块
     def blockStart(self, args):
         """
-        先将指定方块销毁，然后在原地设置掉落物为原方块
+        先将指定方块替换为空气，然后在原地设置掉落物为原方块
         """
         playerId = args['playerId']
-        blockPos = (args['x'], args['y'], args['z'])
+        blockPos = (args['x'] + 5, args['y'] + 5, args['z'])
         levelId = serverApi.GetLevelId()
         blockName = args['blockName']
         comp = serverApi.GetEngineCompFactory().CreateBlockInfo(playerId)  # 此处playerId为block的设置者
-
-        # === 将原方块销毁，并且将掉落物设置为原方块 ===
+        # === 将原方块直接替换为空气 ===
         blockDict = {
-            'name': blockName
+            'name': 'minecraft:air'
         }
-        comp.SetBlockNew(blockPos, blockDict, 1)
+        comp.SetBlockNew(blockPos, blockDict, 0)
+
+        # 在被替换为空气位置处，创建物品实体（即掉落物），返回物品实体的entityId
+        itemDict = {
+            # 'itemName': 'minecraft:grass',
+            'itemName': blockName,
+            'count': 1,
+            # 'enchantData': [(serverApi.GetMinecraftEnum().EnchantType.BowDamage, 1), ],
+            # 'auxValue': 0,
+            # 'customTips': '§c new item §r',
+            # 'extraId': 'abc',
+            # 'userData': {'color': {'__type__': 8, '__value__': 'gray'}}
+        }
+        itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
+        print '------------------------------------------------888 itemEntityId = ', itemEntityId
 
     def Destroy(self):
         self.UnListenEvent()

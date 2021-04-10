@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 
 import mod.client.extraClientApi as clientApi
 
@@ -43,6 +44,23 @@ class BlackHoleClientSystem(ClientSystem):
             self.createParticle(args)
         else:
             logger.info("=== only use black_hole_create can give you the sight ===")
+
+        # --------------------------------------------------------------------------
+        # levelId = clientApi.GetLevelId()
+        # comp = clientApi.GetEngineCompFactory().CreateGame(levelId)
+        # x = args['x']
+        # y = args['y']
+        # z = args['z']
+        # # 吸收半径
+        # r = 3
+        # # 正方形范围起始位置
+        # startPos = ((x - r / 2), (y - r / 2), (z - (math.sqrt(2) * r) / 2))
+        # # 正方形范围结束位置
+        # endPos = ((x + r / 2), (y + r / 2), (z + (math.sqrt(2) * r) / 2))
+        # entities = comp.GetEntityInArea(playerId, startPos, endPos)
+        # print '999999999999999999'
+        # print 'entities = ', entities
+        # --------------------------------------------------------------------------
 
     # 在指定点击位置创建粒子特效
     def createParticle(self, args):
