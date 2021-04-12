@@ -22,7 +22,9 @@ class BlackHoleServerSystem(ServerSystem):
         # TODO: 服务端系统功能
         # 监听原版方块点击（后续可继续添加）
         self.PLACE_REALITY_WARY_MACHINE_BLOCK = [
-            'minecraft:grass', 'minecraft:sand', 'minecraft:dirt', 'minecraft:bed:*'
+            'minecraft:grass', 'minecraft:sand', 'minecraft:dirt', 'minecraft:bed:*', 'minecraft:stone',
+            'minecraft:water', 'minecraft:flowing_water', 'minecraft:gravel', 'minecraft:oak_leaves',
+            'minecraft:spruce_leaves', 'minecraft:birch_leaves', 'minecraft:jungle_leaves', 'minecraft:acacia_leaves'
         ]
         self.ListenEvent()
         self.dict = {}
@@ -30,6 +32,10 @@ class BlackHoleServerSystem(ServerSystem):
         self.flag = False
         self.tick_number = 0
         self.tick_count = 0
+        # 黑洞默认初始半径 = 3
+        self.radius = 3
+        # 黑洞初始吸收速度参数（此并非速度，而是控制速度的相关参数；通过控制移动向量大小以达到控制吸收速度的效果）
+        self.speed_param = 200
 
     def ListenEvent(self):
         # self.DefineEvent(modConfig.CreateEffectEvent)  此定义事件已过期，此处写不写都无作用
@@ -60,59 +66,37 @@ class BlackHoleServerSystem(ServerSystem):
         evenData['blockName'] = args['blockName']
         # 广播CreateEffectEvent事件通知客户端创建特效
         self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
-        print '----------------------------------------------1234567  (x, y, z) = ', (args['x'], args['y'], args['z'])
+        # print '----------------------------------------------1234567  (x, y, z) = ', (args['x'], args['y'], args['z'])
 
-        # 测试
-        # self.blockStart(evenData)
+        # 获取玩家物品，支持获取背包，盔甲栏，副手以及主手物品------------------------------------------------------
+        comp = serverApi.GetEngineCompFactory().CreateItem(args['playerId'])
+        item_dict = comp.GetPlayerItem(serverApi.GetMinecraftEnum().ItemPosType.CARRIED, 0)
+        # 如果玩家手持物品为黑洞制造器，则进行相关操作
+        if item_dict['itemName'] == 'black_hole:black_hole_create':
 
-        # 获取指定中心，指定范围内全部空间坐标（暂时获取的坐标范围为一个方形的）
-        # ========================================
-        # 半径
-        r = 3
-        coordinate_count = 0
-        for nx in range(args["x"] - r, args["x"] + r + 1):
-            # print '77777777777777777777777 ------> nx = ', nx
-            for ny in range(args["y"] - r, args["y"] + r + 1):
-                # print '77777777777777777777777 ------> ny = ', ny
-                for nz in range(args["z"] - r, args["z"] + r + 1):
-                    # print '77777777777777777777777 ------> nz = ', nz
-                    coordinate_count += 1
-                    # print '99999999999999999999999 =======> (nx, ny, nz) = ', (nx, ny, nz), 'coordinate_count = ', coordinate_count
-                    # 将指定位置方块替换为空气，在其位置创建/掉落原实体方块
-                    self.clear_and_create_block(args['playerId'], nx, ny, nz)
+            # 打标记，作为控制开关，决定是否tick调用=============================================================
+            self.flag = True
 
-        # 打标记，作为控制开关，决定是否tick调用=============================================================
-        self.flag = True
+            # 获取指定中心，指定范围内全部空间坐标（暂时获取的坐标范围为一个方形的）
+            # ========================================
+            # 准吸收半径
+            r = self.radius * 3
+            # 拟吸收半径（测试用）
+            # r = 6
+            coordinate_count = 0
+            for nx in range(args["x"] - r, args["x"] + r + 1):
+                for ny in range(args["y"] - r, args["y"] + r + 1):
+                    for nz in range(args["z"] - r, args["z"] + r + 1):
+                        coordinate_count += 1
+                        # print '99999999999999999999999 =======> (nx, ny, nz) = ', (nx, ny, nz), 'coordinate_count = ', coordinate_count
+                        # 将指定位置方块替换为空气，在其位置创建/掉落原实体方块
+                        self.clear_and_create_block(args['playerId'], nx, ny, nz)
 
-        self.dict['playerId'] = args["playerId"]
-        self.dict['x'] = args["x"]
-        self.dict['y'] = args["y"]
-        self.dict['z'] = args["z"]
-        self.dict['blockName'] = args['blockName']
-
-
-        # # ---------------------将指定位置方块替换为空气，在其位置创建/掉落原实体方块--------------------------------
-        # playerId = args["playerId"]
-        # # blockPos = (args["x"] + 5, args["y"] + 5, args["z"])  # ------------------
-        # blockPos = (args["x"], args["y"], args["z"])  # ------------------
-        # levelId = serverApi.GetLevelId()
-        # blockName = args['blockName']
-        # comp = serverApi.GetEngineCompFactory().CreateBlockInfo(playerId)  # 此处playerId为block的设置者
-        # # === 将原方块直接替换为空气 ===
-        # blockDict = {
-        #     'name': 'minecraft:air'
-        # }
-        # comp.SetBlockNew(blockPos, blockDict, 0)
-        #
-        # # 在被替换为空气位置处，创建物品实体（即掉落物），返回物品实体的entityId
-        # itemDict = {
-        #     # 'itemName': 'minecraft:grass',
-        #     'itemName': blockName,
-        #     'count': 1
-        # }
-        # itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
-        # print '------------------------------------------------888 itemEntityId = ', itemEntityId
-        # # ------------------------------------------------------------------
+            self.dict['playerId'] = args["playerId"]
+            self.dict['x'] = args["x"]
+            self.dict['y'] = args["y"]
+            self.dict['z'] = args["z"]
+            self.dict['blockName'] = args['blockName']
 
     def clear_and_create_block(self, playerId, nx, ny, nz):
         """
@@ -126,14 +110,15 @@ class BlackHoleServerSystem(ServerSystem):
         blockPos = (nx, ny, nz)
         levelId = serverApi.GetLevelId()
 
-        blockName = 'minecraft:grass'
         comp = serverApi.GetEngineCompFactory().CreateBlockInfo(playerId)  # 此处playerId为block的设置者
         # 获取操作前的指定位置的方块信息
         old_blockDict = comp.GetBlockNew(blockPos)
         drop_blockName = old_blockDict['name']
         # print '-----------------old_blockDict = ', old_blockDict
-        if old_blockDict['name'] is not 'minecraft:air':
 
+        if old_blockDict['name'] == 'minecraft:air':
+            pass
+        else:
             # === 将原方块直接替换为空气方块 ===
             blockDict = {
                 'name': 'minecraft:air'
@@ -141,12 +126,12 @@ class BlackHoleServerSystem(ServerSystem):
             comp.SetBlockNew(blockPos, blockDict, 0)
 
             # 在被替换为空气位置处，创建物品实体（即掉落物），返回物品实体的entityId
-            itemDict = {
-                # 'itemName': 'minecraft:grass',
-                'itemName': blockName,
-                'count': 1
-            }
-            itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
+            # itemDict = {
+            #     'itemName': drop_blockName,
+            #     'count': 1
+            # }
+            # itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
+            # print 'test1+++++++++++++++++++++++++++++++++++++++++++++++++++  itemEntityId = ', itemEntityId
 
     # 服务器tick时触发,1秒有30个tick
     def OnScriptTickServer(self):
@@ -156,6 +141,7 @@ class BlackHoleServerSystem(ServerSystem):
             # print '-------------------------------------------------- tick', self.count
             pass
 
+        # tick 调用
         # 黑洞初始特效创建完成后，调用自定义函数，初步实现以玩家为范围中心，以点击方块为吸引位置中心，使用向量进行的生物牵引功能
         if self.flag and self.dict['playerId'] and self.dict['x'] and self.dict['y'] and self.dict['z']:
             self.biologyAttract(self.dict.get('playerId', -1), self.dict.get('x', -1), self.dict.get('y', -1),
@@ -167,12 +153,16 @@ class BlackHoleServerSystem(ServerSystem):
         # 使用服务端组件GetEntitiesInSquareArea获取指定范围内实体ID
         levelId = serverApi.GetLevelId()
         comp = serverApi.GetEngineCompFactory().CreateGame(levelId)
-        # 吸收半径
-        r = 100
+        # 准吸收半径
+        r = self.radius * 3
+        # 拟吸收半径（测试用）
+        # r = 100
         # 正方形范围起始位置
         startPos = ((x - r/2), (y - r/2), (z - (math.sqrt(2) * r)/2))
+        print '1111111111111111111111 startPos = ', startPos
         # 正方形范围结束位置
         endPos = ((x + r/2), (y + r/2), (z + (math.sqrt(2) * r)/2))
+        print '222222222222222222222 endPos = ', endPos
         # 获取到的指定正方形范围内所有entityId
         entity_ids = comp.GetEntitiesInSquareArea(None, startPos, endPos, 0)
         # ---------------去除玩家ID，去除黑洞对玩家的效果-----------------
@@ -190,7 +180,13 @@ class BlackHoleServerSystem(ServerSystem):
                 entityPosX = entityPos[0]
                 entityPosY = entityPos[1]
                 entityPosZ = entityPos[2]
-                set_motion(id, (float(x - entityPosX) / 50, float(y - entityPosY) / 50, float(z - entityPosZ) / 50))
+                # set_motion(id, (float(x - entityPosX) / 30, float(y - entityPosY) / 30, float(z - entityPosZ) / 30))
+                # set_motion(id, (float(x - entityPosX) / 50, float(y - entityPosY) / 50, float(z - entityPosZ) / 50))
+                # set_motion(id, (float(x - entityPosX)/100, float(y - entityPosY)/100, float(z - entityPosZ)/100))
+                set_motion(id, (float(x - entityPosX) / self.speed_param, float(y - entityPosY) / self.speed_param,
+                                float(z - entityPosZ) / self.speed_param))
+                # set_motion(id, (float(x - entityPosX)/200, float(y - entityPosY)/200, float(z - entityPosZ)/200))
+                # set_motion(id, (float(x - entityPosX)/500, float(y - entityPosY)/500, float(z - entityPosZ)/500))
 
         # 下面代码实现功能：杀死进入黑洞半径大小范围内的生物
         for entityId in entity_ids:
@@ -205,8 +201,8 @@ class BlackHoleServerSystem(ServerSystem):
                 num = (x - entity_pos_x)**2 + (y - entity_pos_y)**2 + (z - entity_pos_z)**2
                 # 开平方，获取生物到黑洞中心的距离
                 distance = math.sqrt(num)
-                # 杀死进入黑洞范围内的生物
-                if distance <= 3:
+                # 杀死进入黑洞半径范围内的生物
+                if distance <= self.radius:
                     levelId = serverApi.GetLevelId()
                     comp = serverApi.GetEngineCompFactory().CreateGame(levelId)
                     ret = comp.KillEntity(entityId)
@@ -218,36 +214,6 @@ class BlackHoleServerSystem(ServerSystem):
                             self.tick_count += 1
                             self.tick_number = 0
                             print '-----------------------------------------------------------------------------------------> kill number = ', self.tick_count
-
-    # 方块物品先搁置，先实现生物这块
-    def blockStart(self, args):
-        """
-        先将指定方块替换为空气，然后在原地设置掉落物为原方块
-        """
-        playerId = args['playerId']
-        blockPos = (args['x'] + 5, args['y'] + 5, args['z'])
-        levelId = serverApi.GetLevelId()
-        blockName = args['blockName']
-        comp = serverApi.GetEngineCompFactory().CreateBlockInfo(playerId)  # 此处playerId为block的设置者
-        # === 将原方块直接替换为空气 ===
-        blockDict = {
-            'name': 'minecraft:air'
-        }
-        comp.SetBlockNew(blockPos, blockDict, 0)
-
-        # 在被替换为空气位置处，创建物品实体（即掉落物），返回物品实体的entityId
-        itemDict = {
-            # 'itemName': 'minecraft:grass',
-            'itemName': blockName,
-            'count': 1,
-            # 'enchantData': [(serverApi.GetMinecraftEnum().EnchantType.BowDamage, 1), ],
-            # 'auxValue': 0,
-            # 'customTips': '§c new item §r',
-            # 'extraId': 'abc',
-            # 'userData': {'color': {'__type__': 8, '__value__': 'gray'}}
-        }
-        itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
-        print '------------------------------------------------888 itemEntityId = ', itemEntityId
 
     def Destroy(self):
         self.UnListenEvent()

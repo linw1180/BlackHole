@@ -31,7 +31,6 @@ class BlackHoleClientSystem(ClientSystem):
         self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.CreateEffectEvent, self, self.OnCreateEffect)
 
     def OnCreateEffect(self, args):
-        logger.info("22222222222222222222 %s" % args)
 
         # 获取服务端传过来的玩家ID
         playerId = args["playerId"]
@@ -45,23 +44,6 @@ class BlackHoleClientSystem(ClientSystem):
         else:
             logger.info("=== only use black_hole_create can give you the sight ===")
 
-        # --------------------------------------------------------------------------
-        # levelId = clientApi.GetLevelId()
-        # comp = clientApi.GetEngineCompFactory().CreateGame(levelId)
-        # x = args['x']
-        # y = args['y']
-        # z = args['z']
-        # # 吸收半径
-        # r = 3
-        # # 正方形范围起始位置
-        # startPos = ((x - r / 2), (y - r / 2), (z - (math.sqrt(2) * r) / 2))
-        # # 正方形范围结束位置
-        # endPos = ((x + r / 2), (y + r / 2), (z + (math.sqrt(2) * r) / 2))
-        # entities = comp.GetEntityInArea(playerId, startPos, endPos)
-        # print '999999999999999999'
-        # print 'entities = ', entities
-        # --------------------------------------------------------------------------
-
     # 在指定点击位置创建粒子特效
     def createParticle(self, args):
         """
@@ -69,17 +51,12 @@ class BlackHoleClientSystem(ClientSystem):
         :param args: 玩家ID，方块命名空间和方块位置信息
         :return:
         """
-        logger.info("333333333333333333333333333 %s" % args)
-
         # 固定位置播放======================================================================
 
         # 获取传过来的dict中点击方块的位置信息
         x = args['x']
         y = args['y']
         z = args['z']
-        logger.info('-------------------------------------------- x = %d' % x)
-        logger.info('-------------------------------------------- y = %d' % y)
-        logger.info('-------------------------------------------- z = %d' % z)
 
         # 获取位置pos（实体坐标） tuple(float, float, float)
         # 获取角度rot（俯仰角度以及绕竖直方向的角度） tuple(float, float)
@@ -90,11 +67,8 @@ class BlackHoleClientSystem(ClientSystem):
         particle_comp.SetRot(rot)
 
         # 播放特效
-        logger.info("------------------------------> particleEntityId = %s" % particleEntityId)
         particleControlComp = clientApi.GetEngineCompFactory().CreateParticleControl(particleEntityId)
-        logger.info("------------------------------> particleControlComp = %s" % particleControlComp)
         particleControlComp.Play()
-        logger.info("44444444444444444444444444444")
 
     # 删除特效实体方法
     def removeParticle(self, particleEntityId):
