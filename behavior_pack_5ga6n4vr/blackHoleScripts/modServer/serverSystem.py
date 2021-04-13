@@ -37,8 +37,8 @@ class BlackHoleServerSystem(ServerSystem):
         # 黑洞初始吸收速度参数（此并非速度，而是控制速度的相关参数；通过控制移动向量大小以达到控制吸收速度的效果）
         self.speed_param = 200
         # 吸收半径（注意: 最开始需要在此默认数值基础上再进行操作）
-        self.attract_radius = 18
-        # self.attract_radius = 9
+        # self.attract_radius = 18
+        self.attract_radius = self.radius * 3
 
         # 打标记用，控制设置吸收半径的开关（在tick中，设置一次就需要关闭）
         self.set_attract_radius_switch = True
@@ -92,7 +92,7 @@ class BlackHoleServerSystem(ServerSystem):
 
             # 对指定半径范围内方块进行相关处理
             # 获取指定中心，指定范围内全部空间坐标（暂时获取的坐标范围为一个方形的）
-            # 初始默认吸收半径
+            # 初始默认吸收半径（不用改）
             r = 9
             for nx in range(args["x"] - r, args["x"] + r + 1):
                 for ny in range(args["y"] - r, args["y"] + r + 1):
@@ -176,10 +176,11 @@ class BlackHoleServerSystem(ServerSystem):
         levelId = serverApi.GetLevelId()
         comp = serverApi.GetEngineCompFactory().CreateGame(levelId)
 
-        # 每吸收20个，吸收半径扩大为原来的三倍
-        if self.tick_count != 0 and self.tick_count % 10 == 0 and self.set_attract_radius_switch:
-            self.attract_radius *= 3  # 设置吸收半径（扩大三倍）
-            self.speed_param /= 3  # 设置吸收速度（扩大三倍）
+        # 每吸收20个，黑洞半径扩大一格，吸收半径和吸收速度均扩大为原来半径大小的三倍---------------------------------------------
+        if self.tick_count != 0 and self.tick_count % 20 == 0 and self.set_attract_radius_switch:
+            self.radius += 1  # 设置半径大小（每次扩增1格）
+            self.attract_radius = self.radius * 3  # 设置吸收半径（为原半径大小的三倍；注意：原半径每次扩大一格）
+            # self.speed_param /= 3  # 设置吸收速度（为原半径大小的三倍；注意：原半径每次扩大一格） ----（可能有点问题，和原半径大小建立不起联系，暂时用的原速度3倍，吸收速度增长太快）-------------------
             # print '=======================================================================================> self.tick_number = ', self.tick_number
             # 因为在tick执行，所以需要进行控制：每当满足条件，都只设置一次（符合条件，每次设置完一次后，就关闭开关，即使后边tick中实体杀死数量仍符合设置条件，但由于开关关闭，无法再次进行设置）
             self.set_attract_radius_switch = False
@@ -187,9 +188,9 @@ class BlackHoleServerSystem(ServerSystem):
         print '=======================================================================================> self.attract_radius = ', self.attract_radius
 
         # 正方形范围起始位置
-        startPos = ((x - self.attract_radius/2), (y - self.attract_radius/2), (z - (math.sqrt(2) * self.attract_radius)/2))
+        startPos = ((x - self.attract_radius), (y - self.attract_radius), (z - (math.sqrt(2) * self.attract_radius)))
         # 正方形范围结束位置
-        endPos = ((x + self.attract_radius/2), (y + self.attract_radius/2), (z + (math.sqrt(2) * self.attract_radius)/2))
+        endPos = ((x + self.attract_radius), (y + self.attract_radius), (z + (math.sqrt(2) * self.attract_radius)))
         # 获取到的指定正方形范围内所有entityId
         entity_ids = comp.GetEntitiesInSquareArea(None, startPos, endPos, 0)
         # ---------------去除玩家ID，去除黑洞对玩家的效果-----------------
