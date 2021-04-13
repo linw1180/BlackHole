@@ -36,6 +36,13 @@ class BlackHoleServerSystem(ServerSystem):
         self.radius = 3
         # 黑洞初始吸收速度参数（此并非速度，而是控制速度的相关参数；通过控制移动向量大小以达到控制吸收速度的效果）
         self.speed_param = 200
+        # 吸收半径（注意: 最开始需要在此默认数值基础上再进行操作）
+        self.attract_radius = 18
+        # self.attract_radius = 9
+
+        # 打标记用，控制设置吸收半径的开关（在tick中，设置一次就需要关闭）
+        self.set_attract_radius_switch = True
+
 
     def ListenEvent(self):
         # self.DefineEvent(modConfig.CreateEffectEvent)  此定义事件已过期，此处写不写都无作用
@@ -77,26 +84,38 @@ class BlackHoleServerSystem(ServerSystem):
             # 打标记，作为控制开关，决定是否tick调用=============================================================
             self.flag = True
 
-            # 获取指定中心，指定范围内全部空间坐标（暂时获取的坐标范围为一个方形的）
-            # ========================================
-            # 准吸收半径
-            r = self.radius * 3
-            # 拟吸收半径（测试用）
-            # r = 6
-            coordinate_count = 0
-            for nx in range(args["x"] - r, args["x"] + r + 1):
-                for ny in range(args["y"] - r, args["y"] + r + 1):
-                    for nz in range(args["z"] - r, args["z"] + r + 1):
-                        coordinate_count += 1
-                        # print '99999999999999999999999 =======> (nx, ny, nz) = ', (nx, ny, nz), 'coordinate_count = ', coordinate_count
-                        # 将指定位置方块替换为空气，在其位置创建/掉落原实体方块
-                        self.clear_and_create_block(args['playerId'], nx, ny, nz)
-
             self.dict['playerId'] = args["playerId"]
             self.dict['x'] = args["x"]
             self.dict['y'] = args["y"]
             self.dict['z'] = args["z"]
             self.dict['blockName'] = args['blockName']
+
+            # 对指定半径范围内方块进行相关处理
+            # 获取指定中心，指定范围内全部空间坐标（暂时获取的坐标范围为一个方形的）
+            # 初始默认吸收半径
+            r = 9
+            for nx in range(args["x"] - r, args["x"] + r + 1):
+                for ny in range(args["y"] - r, args["y"] + r + 1):
+                    for nz in range(args["z"] - r, args["z"] + r + 1):
+                        # 将指定位置方块替换为空气，在其位置创建/掉落原实体方块
+                        self.clear_and_create_block(args["playerId"], nx, ny, nz)
+
+    # 先搁置
+    def set_new_block_range(self, x, y, z, playerId):
+        # 获取指定中心，指定范围内全部空间坐标（暂时获取的坐标范围为一个方形的）
+        # ========================================
+        # 准吸收半径（注意: 需要在此默认数值基础上再进行操作）
+        # r = self.radius * 3
+        # 每吸收20个，吸收半径扩大三倍（用新半径将原半径覆盖）
+        # if self.tick_count % 20 == 0:
+        #     r = r * 3
+        # 拟吸收半径（测试用）
+        r = 6
+        for nx in range(x - r, x + r + 1):
+            for ny in range(y - r, y + r + 1):
+                for nz in range(z - r, z + r + 1):
+                    # 将指定位置方块替换为空气，在其位置创建/掉落原实体方块
+                    self.clear_and_create_block(playerId, nx, ny, nz)
 
     def clear_and_create_block(self, playerId, nx, ny, nz):
         """
@@ -147,22 +166,30 @@ class BlackHoleServerSystem(ServerSystem):
             self.biologyAttract(self.dict.get('playerId', -1), self.dict.get('x', -1), self.dict.get('y', -1),
                                 self.dict.get('z', -1))
 
+        # if self.tick_count % 20 == 0:
+        #     self.set_block_range(self.dict.get('x'), self.dict.get('y'), self.dict.get('z'), self.dict.get('playerId'))
+
     # 实现以点击方块处黑洞为中心，一定黑洞初始半径范围内的吸引功能
     def biologyAttract(self, player_id, x, y, z):
 
         # 使用服务端组件GetEntitiesInSquareArea获取指定范围内实体ID
         levelId = serverApi.GetLevelId()
         comp = serverApi.GetEngineCompFactory().CreateGame(levelId)
-        # 准吸收半径
-        r = self.radius * 3
-        # 拟吸收半径（测试用）
-        # r = 100
+
+        # 每吸收20个，吸收半径扩大为原来的三倍
+        if self.tick_count != 0 and self.tick_count % 10 == 0 and self.set_attract_radius_switch:
+            self.attract_radius *= 3  # 设置吸收半径（扩大三倍）
+            self.speed_param /= 3  # 设置吸收速度（扩大三倍）
+            # print '=======================================================================================> self.tick_number = ', self.tick_number
+            # 因为在tick执行，所以需要进行控制：每当满足条件，都只设置一次（符合条件，每次设置完一次后，就关闭开关，即使后边tick中实体杀死数量仍符合设置条件，但由于开关关闭，无法再次进行设置）
+            self.set_attract_radius_switch = False
+        print '=======================================================================================> self.tick_count = ', self.tick_count
+        print '=======================================================================================> self.attract_radius = ', self.attract_radius
+
         # 正方形范围起始位置
-        startPos = ((x - r/2), (y - r/2), (z - (math.sqrt(2) * r)/2))
-        print '1111111111111111111111 startPos = ', startPos
+        startPos = ((x - self.attract_radius/2), (y - self.attract_radius/2), (z - (math.sqrt(2) * self.attract_radius)/2))
         # 正方形范围结束位置
-        endPos = ((x + r/2), (y + r/2), (z + (math.sqrt(2) * r)/2))
-        print '222222222222222222222 endPos = ', endPos
+        endPos = ((x + self.attract_radius/2), (y + self.attract_radius/2), (z + (math.sqrt(2) * self.attract_radius)/2))
         # 获取到的指定正方形范围内所有entityId
         entity_ids = comp.GetEntitiesInSquareArea(None, startPos, endPos, 0)
         # ---------------去除玩家ID，去除黑洞对玩家的效果-----------------
@@ -208,10 +235,12 @@ class BlackHoleServerSystem(ServerSystem):
                     ret = comp.KillEntity(entityId)
                     if ret:
                         self.tick_number += 1
-                        print '----------------> tick_number = ', self.tick_number
-                        if self.tick_number == 16:
+                        if self.tick_number == 32:
                             # 此处 tick_count 代表黑洞杀死的实体数量
                             self.tick_count += 1
+                            # 每杀死一个实体时，将吸收半径的开关，开启一次（---非常重要，上边tick执行中设置吸收半径就靠它了，花了接近一个点想出来！---）
+                            self.set_attract_radius_switch = True
+                            # 符合条件后，将最终的tick计数归零
                             self.tick_number = 0
                             print '-----------------------------------------------------------------------------------------> kill number = ', self.tick_count
 
