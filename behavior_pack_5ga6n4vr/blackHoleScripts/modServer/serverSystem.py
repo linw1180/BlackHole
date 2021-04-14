@@ -152,16 +152,6 @@ class BlackHoleServerSystem(ServerSystem):
             }
             itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
 
-            # 设置实体的重力因子，当生物重力因子为0时则应用世界的重力因子（暂时实验出来没出现什么效果）
-            # comp = serverApi.GetEngineCompFactory().CreateGravity(itemEntityId)
-            # comp.SetGravity(0.08)
-            # print 'test1+++++++++++++++++++++++++++++++++++++++++++++++++++  itemEntityId = ', itemEntityId
-
-            # 获取实体重力因子
-            # comp = serverApi.GetEngineCompFactory().CreateGravity(itemEntityId)
-            # item_gravity = comp.GetGravity()
-            # print '============================11111 item_gravity =', item_gravity
-
     # 服务器tick时触发,1秒有30个tick
     def OnScriptTickServer(self):
         self.count += 1
@@ -194,8 +184,8 @@ class BlackHoleServerSystem(ServerSystem):
             # print '=======================================================================================> self.tick_number = ', self.tick_number
             # 因为在tick执行，所以需要进行控制：每当满足条件，都只设置一次（符合条件，每次设置完一次后，就关闭开关，即使后边tick中实体杀死数量仍符合设置条件，但由于开关关闭，无法再次进行设置）
             self.set_attract_radius_switch = False
-        print '=======================================================================================> self.tick_count = ', self.tick_count
-        print '=======================================================================================> self.attract_radius = ', self.attract_radius
+        # print '=======================================================================================> self.tick_count = ', self.tick_count
+        # print '=======================================================================================> self.attract_radius = ', self.attract_radius
 
         # # 正方形范围起始位置
         # startPos = ((x - self.attract_radius), (y - self.attract_radius), (z - (math.sqrt(2) * self.attract_radius)))
@@ -203,7 +193,7 @@ class BlackHoleServerSystem(ServerSystem):
         # endPos = ((x + self.attract_radius), (y + self.attract_radius), (z + (math.sqrt(2) * self.attract_radius)))
 
         # 测试用吸收半径
-        r = 100
+        r = 50
         startPos = ((x - r/2), (y - r/2), (z - (math.sqrt(2) * r/2)))
         endPos = ((x + r/2), (y + r/2), (z + (math.sqrt(2) * r/2)))
 
@@ -213,9 +203,16 @@ class BlackHoleServerSystem(ServerSystem):
         if player_id in entity_ids:
             entity_ids.remove(player_id)
 
-        print '-----------------------------> attract_count : ', len(entity_ids)
+        # print '-----------------------------> attract_count : ', len(entity_ids)
 
         for entityId in entity_ids:
+
+            # 对范围内实体进行区分，将生物实体和掉落物实体区分开，分别进行向量位移计算
+            type_comp = serverApi.GetEngineCompFactory().CreateEngineType(entityId)
+            # 获取实体类型
+            entityType = type_comp.GetEngineType()
+            # print '44444444444444444 entityType =', entityType
+
             # print '================= id = ', id
             # 获取实体位置坐标
             comp = serverApi.GetEngineCompFactory().CreatePos(entityId)
@@ -224,6 +221,8 @@ class BlackHoleServerSystem(ServerSystem):
                 entityPosX = entityPos[0]
                 entityPosY = entityPos[1]
                 entityPosZ = entityPos[2]
+
+                # print '11111111111111111111 pos =', (entityPosX, entityPosY, entityPosZ)
 
                 # 下面代码实现功能：将黑洞吸收半径范围内的实体吸引过来
                 # set_motion(entityId, (float(x - entityPosX) / 30, float(y - entityPosY) / 30, float(z - entityPosZ) / 30))
@@ -237,9 +236,17 @@ class BlackHoleServerSystem(ServerSystem):
                 # 测试------------（使用SetPos接口设置实体位置，类似于传送，需要每次传送小距离以达到匀速效果）
                 # print '2222222222 (x,y,z) =', (entityPosX, entityPosY, entityPosZ)
                 # print '3333333333 data =', (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200)
+
                 success = comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
                              (float(y - entityPosY) / 200) + entityPosY,
                              (float(z - entityPosZ) / 200) + entityPosZ))
+
+                # print '222222222222222 setPos =', (((float(x - entityPosX) / 60) + entityPosX,
+                #              (float(y - entityPosY) / 60) + entityPosY,
+                #              (float(z - entityPosZ) / 60) + entityPosZ))
+                #
+                # print '333333333333333 ', (x, y, z)
+
                 # print '66666666666 success =', success
                 #            (float(x - entityPosX) / self.speed_param,
                 #             float(y - entityPosY) / self.speed_param,
@@ -257,7 +264,8 @@ class BlackHoleServerSystem(ServerSystem):
                 if distance <= self.radius:
                     levelId = serverApi.GetLevelId()
                     comp = serverApi.GetEngineCompFactory().CreateGame(levelId)
-                    ret = comp.KillEntity(entityId)
+                    # ret = comp.KillEntity(entityId)
+                    ret = self.DestroyEntity(entityId)
                     if ret:
                         self.tick_number += 1
                         # print 'ret =', ret
@@ -270,7 +278,7 @@ class BlackHoleServerSystem(ServerSystem):
                             self.set_attract_radius_switch = True
                             # 符合条件后，将最终的tick计数归零
                             self.tick_number = 0
-                            print '-----------------------------------------------------------------------------------------> kill number = ', self.tick_count
+                            # print '-----------------------------------------------------------------------------------------> kill number = ', self.tick_count
 
     def Destroy(self):
         self.UnListenEvent()
