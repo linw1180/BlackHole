@@ -192,7 +192,7 @@ class BlackHoleServerSystem(ServerSystem):
         # endPos = ((x + self.attract_radius), (y + self.attract_radius), (z + (math.sqrt(2) * self.attract_radius)))
 
         # 测试用吸收半径
-        r = 50
+        r = 20
         startPos = ((x - r/2), (y - r/2), (z - (math.sqrt(2) * r/2)))
         endPos = ((x + r/2), (y + r/2), (z + (math.sqrt(2) * r/2)))
 
@@ -212,7 +212,6 @@ class BlackHoleServerSystem(ServerSystem):
             entityType = type_comp.GetEngineType()
             # print '44444444444444444 entityType =', entityType
 
-            # print '================= id = ', id
             # 获取实体位置坐标
             comp = serverApi.GetEngineCompFactory().CreatePos(entityId)
             entityPos = comp.GetPos()
@@ -220,6 +219,20 @@ class BlackHoleServerSystem(ServerSystem):
                 entityPosX = entityPos[0]
                 entityPosY = entityPos[1]
                 entityPosZ = entityPos[2]
+
+                if entityType and entityType == 64:
+                    # 掉落物实体的向量移动逻辑
+                    comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
+                                 (float(y - entityPosY) / 200) + entityPosY,
+                                 (float(z - entityPosZ) / 200) + entityPosZ))
+                    # set_motion(entityId,
+                    #            (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200))
+                else:
+                    # 非掉落物实体的向量移动逻辑
+                    comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
+                                 (float(y - entityPosY) / 200) + entityPosY,
+                                 (float(z - entityPosZ) / 200) + entityPosZ))
+
 
                 # print '11111111111111111111 pos =', (entityPosX, entityPosY, entityPosZ)
 
@@ -236,9 +249,10 @@ class BlackHoleServerSystem(ServerSystem):
                 # print '2222222222 (x,y,z) =', (entityPosX, entityPosY, entityPosZ)
                 # print '3333333333 data =', (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200)
 
-                success = comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
-                             (float(y - entityPosY) / 200) + entityPosY,
-                             (float(z - entityPosZ) / 200) + entityPosZ))
+                # SetPos接口----------------------
+                # success = comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
+                #              (float(y - entityPosY) / 200) + entityPosY,
+                #              (float(z - entityPosZ) / 200) + entityPosZ))
 
                 # print '222222222222222 setPos =', (((float(x - entityPosX) / 60) + entityPosX,
                 #              (float(y - entityPosY) / 60) + entityPosY,
@@ -251,6 +265,7 @@ class BlackHoleServerSystem(ServerSystem):
                 #             float(y - entityPosY) / self.speed_param,
                 #             float(z - entityPosZ) / self.speed_param))
 
+                # set_motion接口------------------------
                 # set_motion(entityId, (float(x - entityPosX)/200, float(y - entityPosY)/200, float(z - entityPosZ)/200))
                 # set_motion(entityId, (float(x - entityPosX)/500, float(y - entityPosY)/500, float(z - entityPosZ)/500))
 
@@ -267,6 +282,7 @@ class BlackHoleServerSystem(ServerSystem):
                     ret = self.DestroyEntity(entityId)
                     if ret:
                         self.tick_number += 1
+                        print '-------------------------------- tick_number =', self.tick_number
                         # print 'ret =', ret
                         # print self.tick_number
                         # print '99999999999999999999'
@@ -277,7 +293,7 @@ class BlackHoleServerSystem(ServerSystem):
                             self.set_attract_radius_switch = True
                             # 符合条件后，将最终的tick计数归零
                             self.tick_number = 0
-                            # print '-----------------------------------------------------------------------------------------> kill number = ', self.tick_count
+                            print '-----------------------------------------------------------------------------------------> kill number = ', self.tick_count
 
     def Destroy(self):
         self.UnListenEvent()
