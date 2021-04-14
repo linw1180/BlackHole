@@ -94,6 +94,7 @@ class BlackHoleServerSystem(ServerSystem):
             # 获取指定中心，指定范围内全部空间坐标（暂时获取的坐标范围为一个方形的）
             # 初始默认吸收半径（不用改）
             r = 9
+            r = 9
             for nx in range(args["x"] - r, args["x"] + r + 1):
                 for ny in range(args["y"] - r, args["y"] + r + 1):
                     for nz in range(args["z"] - r, args["z"] + r + 1):
@@ -145,12 +146,21 @@ class BlackHoleServerSystem(ServerSystem):
             comp.SetBlockNew(blockPos, blockDict, 0)
 
             # 在被替换为空气位置处，创建物品实体（即掉落物），返回物品实体的entityId
-            # itemDict = {
-            #     'itemName': drop_blockName,
-            #     'count': 1
-            # }
-            # itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
+            itemDict = {
+                'itemName': drop_blockName,
+                'count': 1
+            }
+            itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
+
+            # 设置实体的重力因子，当生物重力因子为0时则应用世界的重力因子（暂时实验出来没出现什么效果）
+            # comp = serverApi.GetEngineCompFactory().CreateGravity(itemEntityId)
+            # comp.SetGravity(0.08)
             # print 'test1+++++++++++++++++++++++++++++++++++++++++++++++++++  itemEntityId = ', itemEntityId
+
+            # 获取实体重力因子
+            # comp = serverApi.GetEngineCompFactory().CreateGravity(itemEntityId)
+            # item_gravity = comp.GetGravity()
+            # print '============================11111 item_gravity =', item_gravity
 
     # 服务器tick时触发,1秒有30个tick
     def OnScriptTickServer(self):
@@ -177,7 +187,7 @@ class BlackHoleServerSystem(ServerSystem):
         comp = serverApi.GetEngineCompFactory().CreateGame(levelId)
 
         # 每吸收20个，黑洞半径扩大一格，吸收半径和吸收速度均扩大为原来半径大小的三倍---------------------------------------------
-        if self.tick_count != 0 and self.tick_count % 20 == 0 and self.set_attract_radius_switch:
+        if self.tick_count != 0 and self.tick_count % 200000000 == 0 and self.set_attract_radius_switch:
             self.radius += 1  # 设置半径大小（每次扩增1格）
             self.attract_radius = self.radius * 3  # 设置吸收半径（为原半径大小的三倍；注意：原半径每次扩大一格）
             # self.speed_param /= 3  # 设置吸收速度（为原半径大小的三倍；注意：原半径每次扩大一格） ----（可能有点问题，和原半径大小建立不起联系，暂时用的原速度3倍，吸收速度增长太快）-------------------
@@ -187,46 +197,60 @@ class BlackHoleServerSystem(ServerSystem):
         print '=======================================================================================> self.tick_count = ', self.tick_count
         print '=======================================================================================> self.attract_radius = ', self.attract_radius
 
-        # 正方形范围起始位置
-        startPos = ((x - self.attract_radius), (y - self.attract_radius), (z - (math.sqrt(2) * self.attract_radius)))
-        # 正方形范围结束位置
-        endPos = ((x + self.attract_radius), (y + self.attract_radius), (z + (math.sqrt(2) * self.attract_radius)))
+        # # 正方形范围起始位置
+        # startPos = ((x - self.attract_radius), (y - self.attract_radius), (z - (math.sqrt(2) * self.attract_radius)))
+        # # 正方形范围结束位置
+        # endPos = ((x + self.attract_radius), (y + self.attract_radius), (z + (math.sqrt(2) * self.attract_radius)))
+
+        # 测试用吸收半径
+        r = 100
+        startPos = ((x - r/2), (y - r/2), (z - (math.sqrt(2) * r/2)))
+        endPos = ((x + r/2), (y + r/2), (z + (math.sqrt(2) * r/2)))
+
         # 获取到的指定正方形范围内所有entityId
         entity_ids = comp.GetEntitiesInSquareArea(None, startPos, endPos, 0)
         # ---------------去除玩家ID，去除黑洞对玩家的效果-----------------
         if player_id in entity_ids:
             entity_ids.remove(player_id)
-        # 下面代码实现功能：将黑洞吸收半径范围内的实体吸引过来
+
         print '-----------------------------> attract_count : ', len(entity_ids)
 
-        for id in entity_ids:
+        for entityId in entity_ids:
             # print '================= id = ', id
             # 获取实体位置坐标
-            comp = serverApi.GetEngineCompFactory().CreatePos(id)
+            comp = serverApi.GetEngineCompFactory().CreatePos(entityId)
             entityPos = comp.GetPos()
             if entityPos:
                 entityPosX = entityPos[0]
                 entityPosY = entityPos[1]
                 entityPosZ = entityPos[2]
-                # set_motion(id, (float(x - entityPosX) / 30, float(y - entityPosY) / 30, float(z - entityPosZ) / 30))
-                # set_motion(id, (float(x - entityPosX) / 50, float(y - entityPosY) / 50, float(z - entityPosZ) / 50))
-                # set_motion(id, (float(x - entityPosX)/100, float(y - entityPosY)/100, float(z - entityPosZ)/100))
-                set_motion(id, (float(x - entityPosX) / self.speed_param, float(y - entityPosY) / self.speed_param,
-                                float(z - entityPosZ) / self.speed_param))
-                # set_motion(id, (float(x - entityPosX)/200, float(y - entityPosY)/200, float(z - entityPosZ)/200))
-                # set_motion(id, (float(x - entityPosX)/500, float(y - entityPosY)/500, float(z - entityPosZ)/500))
 
-        # 下面代码实现功能：杀死进入黑洞半径大小范围内的生物
-        for entityId in entity_ids:
-            # 获取实体位置坐标
-            comp = serverApi.GetEngineCompFactory().CreatePos(entityId)
-            entityPos = comp.GetPos()
-            if entityPos:
-                entity_pos_x = entityPos[0]
-                entity_pos_y = entityPos[1]
-                entity_pos_z = entityPos[2]
+                # 下面代码实现功能：将黑洞吸收半径范围内的实体吸引过来
+                # set_motion(entityId, (float(x - entityPosX) / 30, float(y - entityPosY) / 30, float(z - entityPosZ) / 30))
+                # set_motion(entityId, (float(x - entityPosX) / 50, float(y - entityPosY) / 50, float(z - entityPosZ) / 50))
+                # set_motion(entityId, (float(x - entityPosX)/100, float(y - entityPosY)/100, float(z - entityPosZ)/100))
+
+                # 给指定范围内目标实体向黑洞方向的位移: 使用set_motion（tick形式）
+                # set_motion(entityId, (float(x - entityPosX) / self.speed_param, float(y - entityPosY) / self.speed_param,
+                #                 float(z - entityPosZ) / self.speed_param))
+
+                # 测试------------（使用SetPos接口设置实体位置，类似于传送，需要每次传送小距离以达到匀速效果）
+                # print '2222222222 (x,y,z) =', (entityPosX, entityPosY, entityPosZ)
+                # print '3333333333 data =', (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200)
+                success = comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
+                             (float(y - entityPosY) / 200) + entityPosY,
+                             (float(z - entityPosZ) / 200) + entityPosZ))
+                # print '66666666666 success =', success
+                #            (float(x - entityPosX) / self.speed_param,
+                #             float(y - entityPosY) / self.speed_param,
+                #             float(z - entityPosZ) / self.speed_param))
+
+                # set_motion(entityId, (float(x - entityPosX)/200, float(y - entityPosY)/200, float(z - entityPosZ)/200))
+                # set_motion(entityId, (float(x - entityPosX)/500, float(y - entityPosY)/500, float(z - entityPosZ)/500))
+
+                # 下面代码实现功能：杀死进入黑洞半径大小范围内的生物
                 # 获取黑洞吸收半径范围内所有生物到黑洞中心的距离
-                num = (x - entity_pos_x)**2 + (y - entity_pos_y)**2 + (z - entity_pos_z)**2
+                num = (x - entityPosX) ** 2 + (y - entityPosY) ** 2 + (z - entityPosZ) ** 2
                 # 开平方，获取生物到黑洞中心的距离
                 distance = math.sqrt(num)
                 # 杀死进入黑洞半径范围内的生物
@@ -236,6 +260,9 @@ class BlackHoleServerSystem(ServerSystem):
                     ret = comp.KillEntity(entityId)
                     if ret:
                         self.tick_number += 1
+                        # print 'ret =', ret
+                        # print self.tick_number
+                        # print '99999999999999999999'
                         if self.tick_number == 32:
                             # 此处 tick_count 代表黑洞杀死的实体数量
                             self.tick_count += 1
