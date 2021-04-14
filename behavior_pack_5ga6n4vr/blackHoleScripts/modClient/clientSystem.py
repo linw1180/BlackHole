@@ -40,14 +40,14 @@ class BlackHoleClientSystem(ClientSystem):
         itemName = carriedData["itemName"]
         # 此处进行判断，若玩家使用的手持物品为黑洞制造器，则调用方法进行指定位置的黑洞特效创建
         if itemName == "black_hole:black_hole_create":
-            self.createParticle(args)
+            self.createSfx(args)
         else:
             logger.info("=== only use black_hole_create can give you the sight ===")
 
     # 在指定点击位置创建粒子特效
-    def createParticle(self, args):
+    def createSfx(self, args):
         """
-        在指定点击位置创建粒子特效
+        在指定点击位置创建序列帧特效
         :param args: 玩家ID，方块命名空间和方块位置信息
         :return:
         """
@@ -62,17 +62,19 @@ class BlackHoleClientSystem(ClientSystem):
         # 获取角度rot（俯仰角度以及绕竖直方向的角度） tuple(float, float)
         pos = (x + 0.5, y + 0.5, z + 0.5)
         rot = (90, 0, 0)  # 这里用的自定义的
-        particleEntityId = self.CreateEngineParticle("effects/black_hole.json", pos)
-        particle_comp = clientApi.GetEngineCompFactory().CreateParticleTrans(particleEntityId)
-        particle_comp.SetRot(rot)
-
+        # 创建序列帧特效
+        frameEntityId = self.CreateEngineSfxFromEditor("effects/block_hole.json")
+        frameAniTransComp = compFactory.CreateFrameAniTrans(frameEntityId)
+        frameAniTransComp.SetPos(pos)
+        frameAniTransComp.SetRot(rot)
+        frameAniTransComp.SetScale((3, 3, 3))
+        frameAniControlComp = compFactory.CreateFrameAniControl(frameEntityId)
         # 播放特效
-        particleControlComp = clientApi.GetEngineCompFactory().CreateParticleControl(particleEntityId)
-        particleControlComp.Play()
+        frameAniControlComp.Play()
 
-    # 删除特效实体方法
-    def removeParticle(self, particleEntityId):
-        self.DestroyEntity(particleEntityId)
+    # 删除序列帧特效实体方法
+    def removeSfx(self, frameEntityId):
+        self.DestroyEntity(frameEntityId)
 
     def Destroy(self):
         self.UnListenEvent()

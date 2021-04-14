@@ -73,7 +73,6 @@ class BlackHoleServerSystem(ServerSystem):
         evenData['blockName'] = args['blockName']
         # 广播CreateEffectEvent事件通知客户端创建特效
         self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
-        # print '----------------------------------------------1234567  (x, y, z) = ', (args['x'], args['y'], args['z'])
 
         # 获取玩家物品，支持获取背包，盔甲栏，副手以及主手物品------------------------------------------------------
         comp = serverApi.GetEngineCompFactory().CreateItem(args['playerId'])
