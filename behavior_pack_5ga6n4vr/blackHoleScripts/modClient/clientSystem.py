@@ -23,12 +23,25 @@ class BlackHoleClientSystem(ClientSystem):
         # ClientSystem.__init__(self, namespace, system_name)  这种方式也可以初始化父类
         # TODO: 客户端系统功能
         self.ListenEvent()
+        # 存储序列帧特效实体ID
+        self.frameEntityId = 0
 
     def ListenEvent(self):
         self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.CreateEffectEvent, self, self.OnCreateEffect)
+        self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.SetSfxScaleEvent, self, self.OnSetSfxScale)
 
     def UnListenEvent(self):
         self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.CreateEffectEvent, self, self.OnCreateEffect)
+        self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.SetSfxScaleEvent, self, self.OnSetSfxScale)
+
+    def OnSetSfxScale(self, args):
+        """
+        设置序列帧特效大小
+        """
+        if self.frameEntityId != 0 and args['scale']:
+            comp = clientApi.GetEngineCompFactory().CreateFrameAniTrans(self.frameEntityId)
+            # 设置序列帧特效大小
+            comp.SetScale((args['scale'], args['scale'], args['scale']))
 
     def OnCreateEffect(self, args):
 
@@ -63,7 +76,7 @@ class BlackHoleClientSystem(ClientSystem):
         pos = (x + 0.5, y + 0.5, z + 0.5)
         rot = (90, 0, 0)  # 这里用的自定义的
         # 创建序列帧特效
-        frameEntityId = self.CreateEngineSfxFromEditor("effects/block_hole.json")
+        frameEntityId = self.CreateEngineSfxFromEditor("effects/black_hole.json")
         frameAniTransComp = compFactory.CreateFrameAniTrans(frameEntityId)
         frameAniTransComp.SetPos(pos)
         frameAniTransComp.SetRot(rot)
@@ -71,6 +84,9 @@ class BlackHoleClientSystem(ClientSystem):
         frameAniControlComp = compFactory.CreateFrameAniControl(frameEntityId)
         # 播放特效
         frameAniControlComp.Play()
+
+        # 将序列帧特效实体ID存储到全局变量中，供其他函数使用
+        self.frameEntityId = frameEntityId
 
     # 删除序列帧特效实体方法
     def removeSfx(self, frameEntityId):

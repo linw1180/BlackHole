@@ -1,55 +1,26 @@
 {
-    "particleeffect": {
-        "depthtest": {
-            "enable": "true"
-        },
-        "direction": {
-            "max": "0.0 0.0 0.0",
-            "min": "0.0 0.0 0.0",
-            "value": "Direction"
-        },
-        "emitterScaleCurve": [
-
+    "frameeffect": {
+        "cylinder_enable": false,
+        "depth_test": true,
+        "face_camera": true,
+        "fade_distance": 0.0,
+        "fps": 30,
+        "loop": true,
+        "rot_speed": [
+            0.0,
+            0.0,
+            -90.0
         ],
-        "emitterscale": [
-
+        "scale": [
+            3.0,
+            3.0,
+            3.0
         ],
-        "emittersize": {
-            "value": "0.0 0.0 0.0"
-        },
-        "emittertype": {
-            "value": "Sphere"
-        },
-        "enablecolor": {
-            "enable": "false"
-        },
-        "numparticles": {
-            "value": "1"
-        },
-        "particlesize": {
-            "max": "3.0 3.0",
-            "min": "3.0 3.0"
-        },
-        "relative": {
-            "enable": "true"
-        },
-        "rotation": {
-            "max": "15.0",
-            "min": "15.0"
-        },
-        "rotationspeed": {
-            "max": "15.0",
-            "min": "15.0"
-        },
-        "texture": {
-            "name": "textures/particle/black_hole"
-        },
-        "thickness": {
-            "value": "0.0"
-        },
-        "timetolive": {
-            "max": "100000.0",
-            "min": "100000.0"
-        }
+        "shuffle": false,
+        "tex_repeat_num": [
+            1,
+            1
+        ],
+        "texture": "textures/sfxs/black_hole"
     }
 }

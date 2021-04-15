@@ -30,6 +30,7 @@ class BlackHoleServerSystem(ServerSystem):
         self.dict = {}
         self.count = 0
         self.flag = False
+        # 用来计数销毁的实体
         self.tick_number = 0
         self.tick_count = 0
         # 黑洞默认初始半径 = 3
@@ -42,6 +43,9 @@ class BlackHoleServerSystem(ServerSystem):
 
         # 打标记用，控制设置吸收半径的开关（在tick中，设置一次就需要关闭）
         self.set_attract_radius_switch = True
+
+        # 黑洞变化计数
+        self.change_count = 0
 
 
     def ListenEvent(self):
@@ -100,7 +104,7 @@ class BlackHoleServerSystem(ServerSystem):
                         # 将指定位置方块替换为空气，在其位置创建/掉落原实体方块
                         self.clear_and_create_block(args["playerId"], nx, ny, nz)
 
-    # 先搁置
+    # 先搁置（此代码略过）
     def set_new_block_range(self, x, y, z, playerId):
         # 获取指定中心，指定范围内全部空间坐标（暂时获取的坐标范围为一个方形的）
         # ========================================
@@ -145,11 +149,11 @@ class BlackHoleServerSystem(ServerSystem):
             comp.SetBlockNew(blockPos, blockDict, 0)
 
             # 在被替换为空气位置处，创建物品实体（即掉落物），返回物品实体的entityId
-            itemDict = {
-                'itemName': drop_blockName,
-                'count': 1
-            }
-            itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
+            # itemDict = {
+            #     'itemName': drop_blockName,
+            #     'count': 1
+            # }
+            # itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
 
     # 服务器tick时触发,1秒有30个tick
     def OnScriptTickServer(self):
@@ -176,25 +180,27 @@ class BlackHoleServerSystem(ServerSystem):
         comp = serverApi.GetEngineCompFactory().CreateGame(levelId)
 
         # 每吸收20个，黑洞半径扩大一格，吸收半径和吸收速度均扩大为原来半径大小的三倍---------------------------------------------
-        if self.tick_count != 0 and self.tick_count % 200000000 == 0 and self.set_attract_radius_switch:
-            self.radius += 1  # 设置半径大小（每次扩增1格）
-            self.attract_radius = self.radius * 3  # 设置吸收半径（为原半径大小的三倍；注意：原半径每次扩大一格）
-            # self.speed_param /= 3  # 设置吸收速度（为原半径大小的三倍；注意：原半径每次扩大一格） ----（可能有点问题，和原半径大小建立不起联系，暂时用的原速度3倍，吸收速度增长太快）-------------------
-            # print '=======================================================================================> self.tick_number = ', self.tick_number
-            # 因为在tick执行，所以需要进行控制：每当满足条件，都只设置一次（符合条件，每次设置完一次后，就关闭开关，即使后边tick中实体杀死数量仍符合设置条件，但由于开关关闭，无法再次进行设置）
-            self.set_attract_radius_switch = False
+        # if self.tick_count != 0 and self.tick_count % 200000000 == 0 and self.set_attract_radius_switch:
+        #     self.radius += 1  # 设置半径大小（每次扩增1格）
+        #     self.attract_radius = self.radius * 3  # 设置吸收半径（为原半径大小的三倍；注意：原半径每次扩大一格）
+        #     # self.speed_param /= 3  # 设置吸收速度（为原半径大小的三倍；注意：原半径每次扩大一格） ----（可能有点问题，和原半径大小建立不起联系，暂时用的原速度3倍，吸收速度增长太快）-------------------
+        #     # print '=======================================================================================> self.tick_number = ', self.tick_number
+        #     # 因为在tick执行，所以需要进行控制：每当满足条件，都只设置一次（符合条件，每次设置完一次后，就关闭开关，即使后边tick中实体杀死数量仍符合设置条件，但由于开关关闭，无法再次进行设置）
+        #     self.set_attract_radius_switch = False
         # print '=======================================================================================> self.tick_count = ', self.tick_count
         # print '=======================================================================================> self.attract_radius = ', self.attract_radius
 
         # # 正方形范围起始位置
-        # startPos = ((x - self.attract_radius), (y - self.attract_radius), (z - (math.sqrt(2) * self.attract_radius)))
+        startPos = ((x - self.attract_radius), (y - self.attract_radius), (z - (math.sqrt(2) * self.attract_radius)))
         # # 正方形范围结束位置
-        # endPos = ((x + self.attract_radius), (y + self.attract_radius), (z + (math.sqrt(2) * self.attract_radius)))
+        endPos = ((x + self.attract_radius), (y + self.attract_radius), (z + (math.sqrt(2) * self.attract_radius)))
+
+        print '========= attract_radius =', self.attract_radius
 
         # 测试用吸收半径
-        r = 20
-        startPos = ((x - r/2), (y - r/2), (z - (math.sqrt(2) * r/2)))
-        endPos = ((x + r/2), (y + r/2), (z + (math.sqrt(2) * r/2)))
+        # r = 20
+        # startPos = ((x - r/2), (y - r/2), (z - (math.sqrt(2) * r/2)))
+        # endPos = ((x + r/2), (y + r/2), (z + (math.sqrt(2) * r/2)))
 
         # 获取到的指定正方形范围内所有entityId
         entity_ids = comp.GetEntitiesInSquareArea(None, startPos, endPos, 0)
@@ -202,7 +208,7 @@ class BlackHoleServerSystem(ServerSystem):
         if player_id in entity_ids:
             entity_ids.remove(player_id)
 
-        # print '-----------------------------> attract_count : ', len(entity_ids)
+        print '-----------------------------> attract =', len(entity_ids)
 
         for entityId in entity_ids:
 
@@ -221,14 +227,14 @@ class BlackHoleServerSystem(ServerSystem):
                 entityPosZ = entityPos[2]
 
                 if entityType and entityType == 64:
-                    # 掉落物实体的向量移动逻辑
+                    # 掉落物实体的向量移动逻辑（最后需要写成可变化的）
                     comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
                                  (float(y - entityPosY) / 200) + entityPosY,
                                  (float(z - entityPosZ) / 200) + entityPosZ))
                     # set_motion(entityId,
                     #            (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200))
                 else:
-                    # 非掉落物实体的向量移动逻辑
+                    # 非掉落物实体的向量移动逻辑（最后需要写成可变化的）
                     comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
                                  (float(y - entityPosY) / 200) + entityPosY,
                                  (float(z - entityPosZ) / 200) + entityPosZ))
@@ -282,18 +288,29 @@ class BlackHoleServerSystem(ServerSystem):
                     ret = self.DestroyEntity(entityId)
                     if ret:
                         self.tick_number += 1
-                        print '-------------------------------- tick_number =', self.tick_number
-                        # print 'ret =', ret
-                        # print self.tick_number
-                        # print '99999999999999999999'
-                        if self.tick_number == 32:
-                            # 此处 tick_count 代表黑洞杀死的实体数量
-                            self.tick_count += 1
-                            # 每杀死一个实体时，将吸收半径的开关，开启一次（---非常重要，上边tick执行中设置吸收半径就靠它了，花了接近一个点想出来！---）
-                            self.set_attract_radius_switch = True
-                            # 符合条件后，将最终的tick计数归零
-                            self.tick_number = 0
-                            print '-----------------------------------------------------------------------------------------> kill number = ', self.tick_count
+                        print '---------------------------------------------------------------- kill =', self.tick_number
+                        # --------------- 此处写黑洞效果随吸收的实体数的变化逻辑 ---------------
+                        if self.tick_number != 0 and self.tick_number % 20 == 0:
+                            self.radius += 1  # 设置半径变化（每次扩增1格）
+                            # --------begin----------  创建事件数据，广播自定义事件，通知客户端修改黑洞序列帧特效大小
+                            eventData = self.CreateEventData()
+                            eventData['scale'] = self.radius
+                            self.BroadcastToAllClient(modConfig.SetSfxScaleEvent, eventData)
+                            # --------over----------
+                            self.attract_radius = self.radius * 3  # 设置吸收半径（每次扩大为原半径大小的三倍；注意：原半径每次扩增1格）
+                            # 待加：此处还需设置吸收速度随半径大小的变化规则（“当前大小的三倍？”）
+                            # 黑洞变化计数
+                            self.change_count += 1
+                            print '-----------------------------------------------------------------------------------------> change_time = ', self.change_count
+
+                        # if self.tick_number == 32:
+                        #     # 此处 tick_count 代表黑洞杀死的实体数量
+                        #     self.tick_count += 1
+                        #     # 每杀死一个实体时，将吸收半径的开关，开启一次（---非常重要，上边tick执行中设置吸收半径就靠它了，花了接近一个点想出来！---）
+                        #     self.set_attract_radius_switch = True
+                        #     # 符合条件后，将最终的tick计数归零
+                        #     self.tick_number = 0
+                        #     print '--------------------------------------------------------------------> kill number = ', self.tick_count
 
     def Destroy(self):
         self.UnListenEvent()

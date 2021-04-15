@@ -23,3 +23,4 @@ ServerBlockUseEvent = 'ServerBlockUseEvent'
 OnScriptTickServer = 'OnScriptTickServer'
 # custom
 CreateEffectEvent = 'CreateEffectEvent'
+SetSfxScaleEvent = 'SetSfxScaleEvent'
