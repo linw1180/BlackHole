@@ -51,6 +51,8 @@ class BlackHoleServerSystem(ServerSystem):
         # 存储坐标的list
         self.coordinate_list = []
 
+        self.test = 0
+
     def ListenEvent(self):
         # self.DefineEvent(modConfig.CreateEffectEvent)  此定义事件已过期，此处写不写都无作用
         self.ListenForEvent(Namespace, SystemName, modConfig.ServerItemUseOnEvent, self, self.OnServerItemUseOnEvent)
@@ -96,12 +98,12 @@ class BlackHoleServerSystem(ServerSystem):
             # 对指定半径范围内方块进行相关处理
             # 获取指定中心，指定范围内全部空间坐标（暂时获取的坐标范围为一个方形的）
             # 初始吸收半径为9
-            self.set_new_block_range(self.attract_radius, args["x"], args["y"], args["z"])
+            self.set_new_block_range_init(self.attract_radius, args["x"], args["y"], args["z"])
 
             # 打标记，作为控制开关，决定是否tick调用=============================================================
             self.flag = True
 
-    def set_new_block_range(self, r, x, y, z):
+    def set_new_block_range_init(self, r, x, y, z):
         """
         获取指定范围内所有坐标，存入list中
         """
@@ -112,6 +114,24 @@ class BlackHoleServerSystem(ServerSystem):
                     if ((nx - x)**2 + (ny - y)**2 + (nz - z)**2) <= r**2:
                         # 获取坐标信息，存入全局list中
                         blockPos = (nx, ny, nz)
+                        # 每次往list末尾添加元素
+                        self.coordinate_list.append(blockPos)
+                        print '111111111111111111111', blockPos
+                        self.test += 1
+                        print '222222222222222222222', self.test
+
+    def set_new_block_range_after(self, r, x, y, z):
+        """
+        获取指定范围内所有坐标，存入list中
+        """
+        # 注意：此半径r为吸收半径
+        for nx in range(x - r, x + r + 1):
+            for ny in range(y - r, y + r + 1):
+                for nz in range(z - r, z + r + 1):
+                    if ((nx - x)**2 + (ny - y)**2 + (nz - z)**2) <= r**2 and ((nx - x)**2 + (ny - y)**2 + (nz - z)**2) >= (r - 3)**2:
+                        # 获取坐标信息，存入全局list中
+                        blockPos = (nx, ny, nz)
+                        # 每次往list末尾添加元素
                         self.coordinate_list.append(blockPos)
 
     def clear_and_create_block(self, playerId, blockPos):
@@ -162,11 +182,14 @@ class BlackHoleServerSystem(ServerSystem):
 
         # 分批处理：将指定位置方块替换为空气，在其位置创建/掉落原实体方块
         if self.flag and self.coordinate_list and self.dict['playerId']:
-            for i in range(15):
+            for i in range(10):
                 if self.coordinate_list:
                     player_id = self.dict['playerId']
-                    blockPos = self.coordinate_list.pop()
+                    # 每次从list中按从左往右弹，并进行方块的销毁和掉落物的创建
+                    blockPos = self.coordinate_list.pop(i)
                     self.clear_and_create_block(player_id, blockPos)
+
+        print '----------------------------------------->> list ', len(self.coordinate_list)
 
     # if self.tick_count % 20 == 0:
     #     self.set_block_range(self.dict.get('x'), self.dict.get('y'), self.dict.get('z'), self.dict.get('playerId'))
@@ -231,7 +254,7 @@ class BlackHoleServerSystem(ServerSystem):
                                  (float(z - entityPosZ) / 200) + entityPosZ))
                     pos_z = (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200)
                     set_motion(entityId, pos_z)
-                elif entityType:
+                else:
                     # 非掉落物实体的向量移动逻辑（最后需要写成可变化的）
                     comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
                                  (float(y - entityPosY) / 200) + entityPosY,
@@ -287,7 +310,7 @@ class BlackHoleServerSystem(ServerSystem):
                         self.tick_number += 1
                         print '---------------------------------------------------------------- kill =', self.tick_number
                         # --------------- 此处写黑洞效果随吸收的实体数的变化逻辑 ---------------
-                        if self.tick_number != 0 and self.tick_number % 400 == 0:
+                        if self.tick_number != 0 and self.tick_number % 15000000000 == 0:
                             self.radius += 1  # 设置半径变化（每次扩增1格）
                             # --------begin----------  创建事件数据，广播自定义事件，通知客户端修改黑洞序列帧特效大小
                             eventData = self.CreateEventData()
@@ -297,7 +320,7 @@ class BlackHoleServerSystem(ServerSystem):
                             # 设置吸收半径（每次扩大为原半径大小的三倍；注意：原半径每次扩增1格）
                             self.attract_radius = self.radius * 3
                             # 调用函数往存储位置坐标的list中添加新坐标，以便在tick中继续销毁方块创建掉落物
-                            self.set_new_block_range(self.attract_radius, self.dict['x'], self.dict['y'],
+                            self.set_new_block_range_after(self.attract_radius, self.dict['x'], self.dict['y'],
                                                      self.dict['z'])
                             # 待加：此处还需设置吸收速度随半径大小的变化规则（“当前大小的三倍？”）
                             # 黑洞变化计数
