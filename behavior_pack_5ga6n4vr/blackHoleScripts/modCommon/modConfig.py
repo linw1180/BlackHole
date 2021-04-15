@@ -21,6 +21,7 @@ ModClientSystemPath = 'blackHoleScripts.modClient.clientSystem.BlackHoleClientSy
 # engine
 ServerBlockUseEvent = 'ServerBlockUseEvent'
 OnScriptTickServer = 'OnScriptTickServer'
+ServerItemUseOnEvent = 'ServerItemUseOnEvent'
 # custom
 CreateEffectEvent = 'CreateEffectEvent'
 SetSfxScaleEvent = 'SetSfxScaleEvent'

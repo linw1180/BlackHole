@@ -11,6 +11,7 @@ ServerSystem = serverApi.GetServerSystemCls()
 SystemName = serverApi.GetEngineSystemName()
 Namespace = serverApi.GetEngineNamespace()
 
+
 # 服务端系统
 class BlackHoleServerSystem(ServerSystem):
 
@@ -21,11 +22,11 @@ class BlackHoleServerSystem(ServerSystem):
         # ServerSystem.__init__(self, namespace, system_name)
         # TODO: 服务端系统功能
         # 监听原版方块点击（后续可继续添加）
-        self.PLACE_REALITY_WARY_MACHINE_BLOCK = [
-            'minecraft:grass', 'minecraft:sand', 'minecraft:dirt', 'minecraft:bed:*', 'minecraft:stone',
-            'minecraft:water', 'minecraft:flowing_water', 'minecraft:gravel', 'minecraft:oak_leaves',
-            'minecraft:spruce_leaves', 'minecraft:birch_leaves', 'minecraft:jungle_leaves', 'minecraft:acacia_leaves'
-        ]
+        # self.PLACE_REALITY_WARY_MACHINE_BLOCK = [
+        #     'minecraft:grass', 'minecraft:sand', 'minecraft:dirt', 'minecraft:bed:*', 'minecraft:stone',
+        #     'minecraft:water', 'minecraft:flowing_water', 'minecraft:gravel', 'minecraft:oak_leaves',
+        #     'minecraft:spruce_leaves', 'minecraft:birch_leaves', 'minecraft:jungle_leaves', 'minecraft:acacia_leaves'
+        # ]
         self.ListenEvent()
         self.dict = {}
         self.count = 0
@@ -47,30 +48,32 @@ class BlackHoleServerSystem(ServerSystem):
         # 黑洞变化计数
         self.change_count = 0
 
+        # 存储坐标的list
+        self.coordinate_list = []
 
     def ListenEvent(self):
         # self.DefineEvent(modConfig.CreateEffectEvent)  此定义事件已过期，此处写不写都无作用
-        self.ListenForEvent(Namespace, SystemName, modConfig.ServerBlockUseEvent, self, self.OnServerBlockUseEvent)
+        self.ListenForEvent(Namespace, SystemName, modConfig.ServerItemUseOnEvent, self, self.OnServerItemUseOnEvent)
+        # self.ListenForEvent(Namespace, SystemName, modConfig.ServerBlockUseEvent, self, self.OnServerBlockUseEvent)
         self.ListenForEvent(Namespace, SystemName, modConfig.OnScriptTickServer, self, self.OnScriptTickServer)
 
         # 增加对原版方块点击事件的监听
-        for blockName in self.PLACE_REALITY_WARY_MACHINE_BLOCK:
-            block_api.add_block_item_listen_for_use_event(blockName)
+        # for blockName in self.PLACE_REALITY_WARY_MACHINE_BLOCK:
+        #     block_api.add_block_item_listen_for_use_event(blockName)
 
     def UnListenEvent(self):
-        self.UnListenForEvent(Namespace, SystemName, modConfig.ServerBlockUseEvent, self, self.OnServerBlockUseEvent)
+        self.UnListenForEvent(Namespace, SystemName, modConfig.ServerItemUseOnEvent, self, self.OnServerItemUseOnEvent)
+        # self.UnListenForEvent(Namespace, SystemName, modConfig.ServerBlockUseEvent, self, self.OnServerBlockUseEvent)
         self.UnListenForEvent(Namespace, SystemName, modConfig.OnScriptTickServer, self, self.OnScriptTickServer)
 
-    def OnServerBlockUseEvent(self, args):
+    def OnServerItemUseOnEvent(self, args):
         """
-        ServerBlockUseEvent 的回调函数
-        触发时机：玩家右键点击新版自定义方块（或者通过接口AddBlockItemListenForUseEvent增加监听的MC原生游戏方块）时服务端抛出该事件（该事件tick执行，需要注意效率问题）。
-        :param args: 玩家和方块相关信息（可获取玩家ID，方块命名空间和方块坐标等信息）
-        :return: 无
+        ServerItemUseOnEvent 的回调函数
+        玩家在对方块使用物品之前服务端抛出的事件。注：如果需要取消物品的使用需要同时在ClientItemUseOnEvent和ServerItemUseOnEvent中将ret设置为True才能正确取消。
         """
         # 创建事件数据
         evenData = self.CreateEventData()
-        evenData["playerId"] = args["playerId"]
+        evenData["playerId"] = args["entityId"]
         evenData['x'] = args["x"]
         evenData['y'] = args["y"]
         evenData['z'] = args["z"]
@@ -79,30 +82,32 @@ class BlackHoleServerSystem(ServerSystem):
         self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
 
         # 获取玩家物品，支持获取背包，盔甲栏，副手以及主手物品------------------------------------------------------
-        comp = serverApi.GetEngineCompFactory().CreateItem(args['playerId'])
+        comp = serverApi.GetEngineCompFactory().CreateItem(args['entityId'])
         item_dict = comp.GetPlayerItem(serverApi.GetMinecraftEnum().ItemPosType.CARRIED, 0)
         # 如果玩家手持物品为黑洞制造器，则进行相关操作
         if item_dict['itemName'] == 'black_hole:black_hole_create':
-
-            # 打标记，作为控制开关，决定是否tick调用=============================================================
-            self.flag = True
-
-            self.dict['playerId'] = args["playerId"]
-            self.dict['x'] = args["x"]
-            self.dict['y'] = args["y"]
-            self.dict['z'] = args["z"]
-            self.dict['blockName'] = args['blockName']
 
             # 对指定半径范围内方块进行相关处理
             # 获取指定中心，指定范围内全部空间坐标（暂时获取的坐标范围为一个方形的）
             # 初始默认吸收半径（不用改）
             r = 9
-            r = 9
             for nx in range(args["x"] - r, args["x"] + r + 1):
                 for ny in range(args["y"] - r, args["y"] + r + 1):
                     for nz in range(args["z"] - r, args["z"] + r + 1):
+                        # 获取坐标信息，存入全局list中
+                        blockPos = (nx, ny, nz)
+                        self.coordinate_list.append(blockPos)
                         # 将指定位置方块替换为空气，在其位置创建/掉落原实体方块
-                        self.clear_and_create_block(args["playerId"], nx, ny, nz)
+                        # self.clear_and_create_block(args["playerId"], nx, ny, nz)
+
+            self.dict['playerId'] = args["entityId"]
+            self.dict['x'] = args["x"]
+            self.dict['y'] = args["y"]
+            self.dict['z'] = args["z"]
+            self.dict['blockName'] = args['blockName']
+
+            # 打标记，作为控制开关，决定是否tick调用=============================================================
+            self.flag = True
 
     # 先搁置（此代码略过）
     def set_new_block_range(self, x, y, z, playerId):
@@ -121,7 +126,7 @@ class BlackHoleServerSystem(ServerSystem):
                     # 将指定位置方块替换为空气，在其位置创建/掉落原实体方块
                     self.clear_and_create_block(playerId, nx, ny, nz)
 
-    def clear_and_create_block(self, playerId, nx, ny, nz):
+    def clear_and_create_block(self, playerId, blockPos):
         """
         将指定位置方块替换为空气，在其位置创建/掉落原实体方块
         :param playerId:
@@ -130,7 +135,7 @@ class BlackHoleServerSystem(ServerSystem):
         :param nz:
         :return:
         """
-        blockPos = (nx, ny, nz)
+        # blockPos = (nx, ny, nz)
         levelId = serverApi.GetLevelId()
 
         comp = serverApi.GetEngineCompFactory().CreateBlockInfo(playerId)  # 此处playerId为block的设置者
@@ -139,21 +144,19 @@ class BlackHoleServerSystem(ServerSystem):
         drop_blockName = old_blockDict['name']
         # print '-----------------old_blockDict = ', old_blockDict
 
-        if old_blockDict['name'] == 'minecraft:air':
-            pass
-        else:
+        if old_blockDict['name'] != 'minecraft:air':
             # === 将原方块直接替换为空气方块 ===
             blockDict = {
                 'name': 'minecraft:air'
             }
-            comp.SetBlockNew(blockPos, blockDict, 0)
+            comp.SetBlockNew(blockPos, blockDict, 1)
 
-            # 在被替换为空气位置处，创建物品实体（即掉落物），返回物品实体的entityId
-            # itemDict = {
-            #     'itemName': drop_blockName,
-            #     'count': 1
-            # }
-            # itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
+    # # 在被替换为空气位置处，创建物品实体（即掉落物），返回物品实体的entityId
+    # itemDict = {
+    #     'itemName': drop_blockName,
+    #     'count': 1
+    # }
+    # itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
 
     # 服务器tick时触发,1秒有30个tick
     def OnScriptTickServer(self):
@@ -169,8 +172,16 @@ class BlackHoleServerSystem(ServerSystem):
             self.biologyAttract(self.dict.get('playerId', -1), self.dict.get('x', -1), self.dict.get('y', -1),
                                 self.dict.get('z', -1))
 
-        # if self.tick_count % 20 == 0:
-        #     self.set_block_range(self.dict.get('x'), self.dict.get('y'), self.dict.get('z'), self.dict.get('playerId'))
+        # 分批处理：将指定位置方块替换为空气，在其位置创建/掉落原实体方块
+        if self.coordinate_list and self.dict['playerId']:
+            for i in range(15):
+                if self.coordinate_list:
+                    player_id = self.dict['playerId']
+                    blockPos = self.coordinate_list.pop()
+                    self.clear_and_create_block(player_id, blockPos)
+
+    # if self.tick_count % 20 == 0:
+    #     self.set_block_range(self.dict.get('x'), self.dict.get('y'), self.dict.get('z'), self.dict.get('playerId'))
 
     # 实现以点击方块处黑洞为中心，一定黑洞初始半径范围内的吸引功能
     def biologyAttract(self, player_id, x, y, z):
@@ -190,17 +201,17 @@ class BlackHoleServerSystem(ServerSystem):
         # print '=======================================================================================> self.tick_count = ', self.tick_count
         # print '=======================================================================================> self.attract_radius = ', self.attract_radius
 
-        # # 正方形范围起始位置
-        startPos = ((x - self.attract_radius), (y - self.attract_radius), (z - (math.sqrt(2) * self.attract_radius)))
-        # # 正方形范围结束位置
-        endPos = ((x + self.attract_radius), (y + self.attract_radius), (z + (math.sqrt(2) * self.attract_radius)))
+        # # 正方形范围起始位置（正式用）
+        # startPos = ((x - self.attract_radius), (y - self.attract_radius), (z - (math.sqrt(2) * self.attract_radius)))
+        # # 正方形范围结束位置（正式用）
+        # endPos = ((x + self.attract_radius), (y + self.attract_radius), (z + (math.sqrt(2) * self.attract_radius)))
 
-        print '========= attract_radius =', self.attract_radius
+        # print '========= attract_radius =', self.attract_radius
 
         # 测试用吸收半径
-        # r = 20
-        # startPos = ((x - r/2), (y - r/2), (z - (math.sqrt(2) * r/2)))
-        # endPos = ((x + r/2), (y + r/2), (z + (math.sqrt(2) * r/2)))
+        r = 9
+        startPos = ((x - r / 2), (y - r / 2), (z - (math.sqrt(2) * r / 2)))
+        endPos = ((x + r / 2), (y + r / 2), (z + (math.sqrt(2) * r / 2)))
 
         # 获取到的指定正方形范围内所有entityId
         entity_ids = comp.GetEntitiesInSquareArea(None, startPos, endPos, 0)
@@ -208,7 +219,7 @@ class BlackHoleServerSystem(ServerSystem):
         if player_id in entity_ids:
             entity_ids.remove(player_id)
 
-        print '-----------------------------> attract =', len(entity_ids)
+        # print '-----------------------------> attract =', len(entity_ids)
 
         for entityId in entity_ids:
 
@@ -229,16 +240,15 @@ class BlackHoleServerSystem(ServerSystem):
                 if entityType and entityType == 64:
                     # 掉落物实体的向量移动逻辑（最后需要写成可变化的）
                     comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
-                                 (float(y - entityPosY) / 200) + entityPosY,
+                                 (float(y - 2 - entityPosY) / 50) + entityPosY,
                                  (float(z - entityPosZ) / 200) + entityPosZ))
-                    # set_motion(entityId,
-                    #            (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200))
-                else:
+                    pos_z = (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200)
+                    set_motion(entityId, pos_z)
+                elif entityType:
                     # 非掉落物实体的向量移动逻辑（最后需要写成可变化的）
                     comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
                                  (float(y - entityPosY) / 200) + entityPosY,
                                  (float(z - entityPosZ) / 200) + entityPosZ))
-
 
                 # print '11111111111111111111 pos =', (entityPosX, entityPosY, entityPosZ)
 
@@ -288,9 +298,9 @@ class BlackHoleServerSystem(ServerSystem):
                     ret = self.DestroyEntity(entityId)
                     if ret:
                         self.tick_number += 1
-                        print '---------------------------------------------------------------- kill =', self.tick_number
+                        # print '---------------------------------------------------------------- kill =', self.tick_number
                         # --------------- 此处写黑洞效果随吸收的实体数的变化逻辑 ---------------
-                        if self.tick_number != 0 and self.tick_number % 20 == 0:
+                        if self.tick_number != 0 and self.tick_number % 200000000000 == 0:
                             self.radius += 1  # 设置半径变化（每次扩增1格）
                             # --------begin----------  创建事件数据，广播自定义事件，通知客户端修改黑洞序列帧特效大小
                             eventData = self.CreateEventData()
@@ -301,16 +311,16 @@ class BlackHoleServerSystem(ServerSystem):
                             # 待加：此处还需设置吸收速度随半径大小的变化规则（“当前大小的三倍？”）
                             # 黑洞变化计数
                             self.change_count += 1
-                            print '-----------------------------------------------------------------------------------------> change_time = ', self.change_count
+                    # print '-----------------------------------------------------------------------------------------> change_time = ', self.change_count
 
-                        # if self.tick_number == 32:
-                        #     # 此处 tick_count 代表黑洞杀死的实体数量
-                        #     self.tick_count += 1
-                        #     # 每杀死一个实体时，将吸收半径的开关，开启一次（---非常重要，上边tick执行中设置吸收半径就靠它了，花了接近一个点想出来！---）
-                        #     self.set_attract_radius_switch = True
-                        #     # 符合条件后，将最终的tick计数归零
-                        #     self.tick_number = 0
-                        #     print '--------------------------------------------------------------------> kill number = ', self.tick_count
+                # if self.tick_number == 32:
+                #     # 此处 tick_count 代表黑洞杀死的实体数量
+                #     self.tick_count += 1
+                #     # 每杀死一个实体时，将吸收半径的开关，开启一次（---非常重要，上边tick执行中设置吸收半径就靠它了，花了接近一个点想出来！---）
+                #     self.set_attract_radius_switch = True
+                #     # 符合条件后，将最终的tick计数归零
+                #     self.tick_number = 0
+                #     print '--------------------------------------------------------------------> kill number = ', self.tick_count
 
     def Destroy(self):
         self.UnListenEvent()
