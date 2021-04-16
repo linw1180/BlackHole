@@ -2,6 +2,7 @@
 import math
 
 import mod.server.extraServerApi as serverApi
+from mod.common.utils.mcmath import Vector3
 
 from blackHoleScripts.modCommon import modConfig
 from blackHoleScripts.modServer import logger
@@ -21,18 +22,12 @@ class BlackHoleServerSystem(ServerSystem):
         super(BlackHoleServerSystem, self).__init__(namespace, system_name)
         # ServerSystem.__init__(self, namespace, system_name)
         # TODO: 服务端系统功能
-        # 监听原版方块点击（后续可继续添加）
-        # self.PLACE_REALITY_WARY_MACHINE_BLOCK = [
-        #     'minecraft:grass', 'minecraft:sand', 'minecraft:dirt', 'minecraft:bed:*', 'minecraft:stone',
-        #     'minecraft:water', 'minecraft:flowing_water', 'minecraft:gravel', 'minecraft:oak_leaves',
-        #     'minecraft:spruce_leaves', 'minecraft:birch_leaves', 'minecraft:jungle_leaves', 'minecraft:acacia_leaves'
-        # ]
         self.ListenEvent()
         self.dict = {}
         self.count = 0
         self.flag = False
         # 用来计数销毁的实体
-        self.tick_number = 0
+        self.kill_count = 0
         self.tick_count = 0
         # 黑洞默认初始半径 = 3
         self.radius = 3
@@ -45,9 +40,6 @@ class BlackHoleServerSystem(ServerSystem):
         # 打标记用，控制设置吸收半径的开关（在tick中，设置一次就需要关闭）
         self.set_attract_radius_switch = True
 
-        # 黑洞变化计数
-        self.change_count = 0
-
         # 存储坐标的list
         self.coordinate_list = []
 
@@ -56,16 +48,10 @@ class BlackHoleServerSystem(ServerSystem):
     def ListenEvent(self):
         # self.DefineEvent(modConfig.CreateEffectEvent)  此定义事件已过期，此处写不写都无作用
         self.ListenForEvent(Namespace, SystemName, modConfig.ServerItemUseOnEvent, self, self.OnServerItemUseOnEvent)
-        # self.ListenForEvent(Namespace, SystemName, modConfig.ServerBlockUseEvent, self, self.OnServerBlockUseEvent)
         self.ListenForEvent(Namespace, SystemName, modConfig.OnScriptTickServer, self, self.OnScriptTickServer)
-
-        # 增加对原版方块点击事件的监听
-        # for blockName in self.PLACE_REALITY_WARY_MACHINE_BLOCK:
-        #     block_api.add_block_item_listen_for_use_event(blockName)
 
     def UnListenEvent(self):
         self.UnListenForEvent(Namespace, SystemName, modConfig.ServerItemUseOnEvent, self, self.OnServerItemUseOnEvent)
-        # self.UnListenForEvent(Namespace, SystemName, modConfig.ServerBlockUseEvent, self, self.OnServerBlockUseEvent)
         self.UnListenForEvent(Namespace, SystemName, modConfig.OnScriptTickServer, self, self.OnScriptTickServer)
 
     def OnServerItemUseOnEvent(self, args):
@@ -83,90 +69,79 @@ class BlackHoleServerSystem(ServerSystem):
         # 广播CreateEffectEvent事件通知客户端创建特效
         self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
 
-        # 获取玩家物品，支持获取背包，盔甲栏，副手以及主手物品------------------------------------------------------
+        # 获取玩家物品，支持获取背包，盔甲栏，副手以及主手物品
         comp = serverApi.GetEngineCompFactory().CreateItem(args['entityId'])
         item_dict = comp.GetPlayerItem(serverApi.GetMinecraftEnum().ItemPosType.CARRIED, 0)
         # 如果玩家手持物品为黑洞制造器，则进行相关操作
         if item_dict['itemName'] == 'black_hole:black_hole_create':
-
+            # 将数据存入全局变量，供其他函数调用
             self.dict['playerId'] = args["entityId"]
             self.dict['x'] = args["x"]
             self.dict['y'] = args["y"]
             self.dict['z'] = args["z"]
             self.dict['blockName'] = args['blockName']
 
-            # 每次重新创建黑洞，先清空之前的存储坐标的list（直接结束之前黑洞产生的吸引相关效果）
+            # 每次使用黑洞制造器创建黑洞前
+            # 重新关闭使用tick开关控制的函数，防止重新创建新黑洞后，旧黑洞开启的tick开关控制的函数还在执行
+            self.flag = False
+            # 清空坐标数组，处理脏数据，便于后边新黑洞初始吸收范围内方块的销毁与掉落物的创建
             self.coordinate_list = []
+            # 清空杀死的实体计数
+            self.kill_count = 0
 
-            # 对指定半径范围内方块进行相关处理
-            # 获取指定中心，指定范围内全部空间坐标（暂时获取的坐标范围为一个方形的）
-            # 初始吸收半径为9
-            self.set_new_block_range_init(self.attract_radius, args["x"], args["y"], args["z"])
+            # 调用函数，向数组中添加初始吸收半径为9的球形范围内所有方块坐标
+            self.set_new_block_range(self.attract_radius, args["x"], args["y"], args["z"])
 
-            # 打标记，作为控制开关，决定是否tick调用=============================================================
+            # 打标记，作为控制开关，决定是否tick调用
             self.flag = True
 
-    def set_new_block_range_init(self, r, x, y, z):
+    def set_new_block_range(self, ar, x, y, z):
         """
-        获取指定范围内所有坐标，存入list中
+        获取指定吸收半径范围内所有坐标，添加到list末尾（获取的是球形范围内坐标）
         """
-        # 注意：此半径r为吸收半径
-        for nx in range(x - r, x + r + 1):
-            for ny in range(y - r, y + r + 1):
-                for nz in range(z - r, z + r + 1):
-                    if ((nx - x)**2 + (ny - y)**2 + (nz - z)**2) <= r**2:
-                        # 获取坐标信息，存入全局list中
-                        blockPos = (nx, ny, nz)
-                        # 每次往list末尾添加元素
-                        self.coordinate_list.append(blockPos)
+        for r in xrange(ar):
+            for dx in xrange(-r, r + 1):
+                for dy in xrange(-r, r + 1):
+                    for dz in xrange(-r, r + 1):
+                        if abs(dx) < r and abs(dy) != r and abs(dz) != r:
+                            continue
+                        if ar ** 2 < Vector3(dx, dy, dz).LengthSquared():
+                            continue
+                        # 每次往存储坐标的list末尾添加方块坐标，供后续销毁方块并创建掉落物使用
+                        self.coordinate_list.append((x + dx, y + dy, z + dz))
 
-    def set_new_block_range_after(self, r, x, y, z):
-        """
-        获取指定范围内所有坐标，存入list中
-        """
-        # 注意：此半径r为吸收半径
-        for nx in range(x - r, x + r + 1):
-            for ny in range(y - r, y + r + 1):
-                for nz in range(z - r, z + r + 1):
-                    if ((nx - x)**2 + (ny - y)**2 + (nz - z)**2) <= r**2 and ((nx - x)**2 + (ny - y)**2 + (nz - z)**2) >= (r - 3)**2:
-                        # 获取坐标信息，存入全局list中
-                        blockPos = (nx, ny, nz)
-                        # 每次往list末尾添加元素
-                        self.coordinate_list.append(blockPos)
-
-                        self.test += 1
+    # def set_new_block_range_after(self, r, x, y, z):
+    #     """
+    #     获取指定范围内所有坐标，存入list中，从正方形范围内筛选出球形范围坐标
+    #     """
+    #     # 注意：此半径r为吸收半径
+    #     for nx in range(x - r, x + r + 1):
+    #         for ny in range(y - r, y + r + 1):
+    #             for nz in range(z - r, z + r + 1):
+    #                 if ((nx - x) ** 2 + (ny - y) ** 2 + (nz - z) ** 2) <= r ** 2 and (
+    #                         (nx - x) ** 2 + (ny - y) ** 2 + (nz - z) ** 2) >= (r - 3) ** 2:
+    #                     # 获取坐标信息，存入全局list中
+    #                     blockPos = (nx, ny, nz)
+    #                     # 每次往list末尾添加元素
+    #                     self.coordinate_list.append(blockPos)
+    #
+    #                     self.test += 1
 
     def clear_and_create_block(self, playerId, blockPos):
         """
         将指定位置方块替换为空气，在其位置创建/掉落原实体方块
-        :param playerId:
-        :param nx:
-        :param ny:
-        :param nz:
-        :return:
         """
-        # blockPos = (nx, ny, nz)
-        levelId = serverApi.GetLevelId()
-
-        comp = serverApi.GetEngineCompFactory().CreateBlockInfo(playerId)  # 此处playerId为block的设置者
-        # 获取操作前的指定位置的方块信息
+        # 此处playerId为block的设置者
+        comp = serverApi.GetEngineCompFactory().CreateBlockInfo(playerId)
+        # 获取操作前的指定位置的所有方块信息
         old_blockDict = comp.GetBlockNew(blockPos)
-        drop_blockName = old_blockDict['name']
-        # print '-----------------old_blockDict = ', old_blockDict
-
+        # 不对空气方块进行操作
         if old_blockDict['name'] != 'minecraft:air':
-            # === 将原方块直接替换为空气方块 ===
+            # === 将原方块销毁并替换为空气方块，掉落物为原方块 ===
             blockDict = {
                 'name': 'minecraft:air'
             }
             comp.SetBlockNew(blockPos, blockDict, 1)
-
-    # # 在被替换为空气位置处，创建物品实体（即掉落物），返回物品实体的entityId
-    # itemDict = {
-    #     'itemName': drop_blockName,
-    #     'count': 1
-    # }
-    # itemEntityId = self.CreateEngineItemEntity(itemDict, 0, blockPos)
 
     # 服务器tick时触发,1秒有30个tick
     def OnScriptTickServer(self):
@@ -178,43 +153,35 @@ class BlackHoleServerSystem(ServerSystem):
             # print '-------------------------------------------------- tick', self.count
 
         # tick 调用
-        # 黑洞初始特效创建完成后，调用自定义函数，初步实现以玩家为范围中心，以点击方块为吸引位置中心，使用向量进行的生物牵引功能
+        # 黑洞初始特效创建完成后，调用自定义函数，实现以点击方块位置为范围中心，以点击方块为吸引中心，使用向量进行的所有实体牵引功能
         if self.flag and self.dict['playerId'] and self.dict['x'] and self.dict['y'] and self.dict['z']:
-            self.biologyAttract(self.dict.get('playerId', -1), self.dict.get('x', -1), self.dict.get('y', -1),
+            self.biology_attract(self.dict.get('playerId', -1), self.dict.get('x', -1), self.dict.get('y', -1),
                                 self.dict.get('z', -1))
 
-        # 分批处理：将指定位置方块替换为空气，在其位置创建/掉落原实体方块
+        # tick中对数据分批处理：将指定位置方块替换为空气，在其位置创建/掉落原实体方块（每次tick执行一部分）
         if self.flag and self.coordinate_list and self.dict['playerId']:
             for i in range(5):
                 if self.coordinate_list:
                     player_id = self.dict['playerId']
                     # 每次从list中按从左往右弹，并进行方块的销毁和掉落物的创建
                     blockPos = self.coordinate_list.pop(i)
+                    # blockPos = self.coordinate_list.pop()
+                    # 调用自定义函数，销毁方块并创建掉落物
                     self.clear_and_create_block(player_id, blockPos)
 
-        # print '----------------------------------------->> list ', len(self.coordinate_list)
+        print '----------------------------------------->> list ', len(self.coordinate_list)
 
-    # 实现以点击方块处黑洞为中心，一定黑洞初始半径范围内的吸引功能
-    def biologyAttract(self, player_id, x, y, z):
+    # 在tick函数中被调用，满足条件后tick执行，进行对范围内实体的向量牵引
+    # 实现以点击方块处黑洞为中心，一定初始吸收半径范围内的吸引功能
+    def biology_attract(self, player_id, x, y, z):
 
         # 使用服务端组件GetEntitiesInSquareArea获取指定范围内实体ID
         levelId = serverApi.GetLevelId()
         comp = serverApi.GetEngineCompFactory().CreateGame(levelId)
 
-        # 每吸收20个，黑洞半径扩大一格，吸收半径和吸收速度均扩大为原来半径大小的三倍-----------------------------------
-        # if self.tick_count != 0 and self.tick_count % 200000000 == 0 and self.set_attract_radius_switch:
-        #     self.radius += 1  # 设置半径大小（每次扩增1格）
-        #     self.attract_radius = self.radius * 3  # 设置吸收半径（为原半径大小的三倍；注意：原半径每次扩大一格）
-        #     # self.speed_param /= 3  # 设置吸收速度（为原半径大小的三倍；注意：原半径每次扩大一格） ----（可能有点问题，和原半径大小建立不起联系，暂时用的原速度3倍，吸收速度增长太快）-------------------
-        #     # print '=======================================================================================> self.tick_number = ', self.tick_number
-        #     # 因为在tick执行，所以需要进行控制：每当满足条件，都只设置一次（符合条件，每次设置完一次后，就关闭开关，即使后边tick中实体杀死数量仍符合设置条件，但由于开关关闭，无法再次进行设置）
-        #     self.set_attract_radius_switch = False
-        # print '=======================================================================================> self.tick_count = ', self.tick_count
-        # print '=======================================================================================> self.attract_radius = ', self.attract_radius
-
-        # # 正方形范围起始位置（正式用）
+        # 正方形范围起始位置（正式用）
         startPos = ((x - self.attract_radius), (y - self.attract_radius), (z - (math.sqrt(2) * self.attract_radius)))
-        # # 正方形范围结束位置（正式用）
+        # 正方形范围结束位置（正式用）
         endPos = ((x + self.attract_radius), (y + self.attract_radius), (z + (math.sqrt(2) * self.attract_radius)))
 
         # print '========= attract_radius =', self.attract_radius
@@ -226,6 +193,7 @@ class BlackHoleServerSystem(ServerSystem):
 
         # 获取到的指定正方形范围内所有entityId
         entity_ids = comp.GetEntitiesInSquareArea(None, startPos, endPos, 0)
+
         # ---------------去除玩家ID，去除黑洞对玩家的效果-----------------
         if player_id in entity_ids:
             entity_ids.remove(player_id)
@@ -240,7 +208,6 @@ class BlackHoleServerSystem(ServerSystem):
             entityType = type_comp.GetEngineType()
             if not entityType:
                 continue
-            # print '44444444444444444 entityType =', entityType
 
             # 获取实体位置坐标
             comp = serverApi.GetEngineCompFactory().CreatePos(entityId)
@@ -249,82 +216,57 @@ class BlackHoleServerSystem(ServerSystem):
                 entityPosX = entityPos[0]
                 entityPosY = entityPos[1]
                 entityPosZ = entityPos[2]
+
+                # 下面代码实现功能：将黑洞吸收半径范围内的实体吸引过来
                 if entityType and entityType == 64:
                     # 掉落物实体的向量移动逻辑（最后需要写成可变化的）
-                    # comp.SetPos(((float(x - entityPosX) / 5000) + entityPosX,
-                    #              (float(y - 150 - entityPosY) / 1250) + entityPosY,
-                    #              (float(z - entityPosZ) / 5000) + entityPosZ))
-                    # pos_z = (float(x - entityPosX) / 5000, float(y - entityPosY) / 5000, float(z - entityPosZ) / 5000)
-                    # set_motion(entityId, pos_z)
-
-                    comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
-                                 (float(y - 2 - entityPosY) / 50) + entityPosY,
-                                 (float(z - entityPosZ) / 200) + entityPosZ))
-                    pos_z = (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200)
+                    # SetPos接口------------------------
+                    comp.SetPos(((float(x - entityPosX) / 800) + entityPosX,
+                                 (float(y - 3 - entityPosY) / 50) + entityPosY,
+                                 (float(z - entityPosZ) / 800) + entityPosZ))
+                    pos_z = (float(x - entityPosX) / 800, float(y - entityPosY) / 800, float(z - entityPosZ) / 800)
+                    # set_motion接口------------------------
                     set_motion(entityId, pos_z)
+
+                    # comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
+                    #              (float(y - 2 - entityPosY) / 50) + entityPosY,
+                    #              (float(z - entityPosZ) / 200) + entityPosZ))
+                    # pos_z = (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200)
+                    # set_motion(entityId, pos_z)
                 else:
                     # 非掉落物实体的向量移动逻辑（最后需要写成可变化的）
-                    # comp.SetPos(((float(x - entityPosX) / 500) + entityPosX,
-                    #              (float(y - entityPosY) / 500) + entityPosY,
-                    #              (float(z - entityPosZ) / 500) + entityPosZ))
-
+                    # SetPos接口------------------------
                     comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
                                  (float(y - entityPosY) / 200) + entityPosY,
                                  (float(z - entityPosZ) / 200) + entityPosZ))
 
-                # print '11111111111111111111 pos =', (entityPosX, entityPosY, entityPosZ)
+                    # comp.SetPos(((float(x - entityPosX) / 500) + entityPosX,
+                    #              (float(y - entityPosY) / 500) + entityPosY,
+                    #              (float(z - entityPosZ) / 500) + entityPosZ))
 
-                # 下面代码实现功能：将黑洞吸收半径范围内的实体吸引过来
-                # set_motion(entityId, (float(x - entityPosX) / 30, float(y - entityPosY) / 30, float(z - entityPosZ) / 30))
-                # set_motion(entityId, (float(x - entityPosX) / 50, float(y - entityPosY) / 50, float(z - entityPosZ) / 50))
-                # set_motion(entityId, (float(x - entityPosX)/100, float(y - entityPosY)/100, float(z - entityPosZ)/100))
-
-                # 给指定范围内目标实体向黑洞方向的位移: 使用set_motion（tick形式）
-                # set_motion(entityId, (float(x - entityPosX) / self.speed_param, float(y - entityPosY) / self.speed_param,
-                #                 float(z - entityPosZ) / self.speed_param))
-
-                # 测试------------（使用SetPos接口设置实体位置，类似于传送，需要每次传送小距离以达到匀速效果）
-                # print '2222222222 (x,y,z) =', (entityPosX, entityPosY, entityPosZ)
-                # print '3333333333 data =', (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200)
-
-                # SetPos接口----------------------
-                # success = comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
-                #              (float(y - entityPosY) / 200) + entityPosY,
-                #              (float(z - entityPosZ) / 200) + entityPosZ))
-
-                # print '222222222222222 setPos =', (((float(x - entityPosX) / 60) + entityPosX,
-                #              (float(y - entityPosY) / 60) + entityPosY,
-                #              (float(z - entityPosZ) / 60) + entityPosZ))
-                #
-                # print '333333333333333 ', (x, y, z)
-
-                # print '66666666666 success =', success
-                #            (float(x - entityPosX) / self.speed_param,
-                #             float(y - entityPosY) / self.speed_param,
-                #             float(z - entityPosZ) / self.speed_param))
-
-                # set_motion接口------------------------
-                # set_motion(entityId, (float(x - entityPosX)/200, float(y - entityPosY)/200, float(z - entityPosZ)/200))
-                # set_motion(entityId, (float(x - entityPosX)/500, float(y - entityPosY)/500, float(z - entityPosZ)/500))
-
-                # 下面代码实现功能：杀死进入黑洞半径大小范围内的生物
+                # 下面代码实现功能：杀死进入黑洞半径大小范围内的实体
                 # 获取黑洞吸收半径范围内所有生物到黑洞中心的距离
                 num = (x - entityPosX) ** 2 + (y - entityPosY) ** 2 + (z - entityPosZ) ** 2
                 # 开平方，获取生物到黑洞中心的距离
                 distance = math.sqrt(num)
-                # 杀死进入黑洞半径范围内的生物
+                # 杀死进入黑洞半径范围内的实体
                 if distance <= self.radius:
                     levelId = serverApi.GetLevelId()
                     comp = serverApi.GetEngineCompFactory().CreateGame(levelId)
                     # ret = comp.KillEntity(entityId)
                     ret = self.DestroyEntity(entityId)
                     if ret:
-                        self.tick_number += 1
-                        # print '---------------------------------------------------------------- kill =', self.tick_number
+                        self.kill_count += 1
+                        print '---------------------------------------------------------------- kill =', self.kill_count
                         # --------------- 此处写黑洞效果随吸收的实体数的变化逻辑 ---------------
-                        # if self.tick_number != 0 and self.tick_number % 200 == 0:
-                        if self.tick_number != 0 and self.tick_number % 200 == 0:
-                            self.radius += 1  # 设置半径变化（每次扩增1格）
+                        # if self.kill_count != 0 and self.kill_count % 200 == 0:
+                        # 计算出吸收半径的圆和黑洞杀死半径的圆之间的体积的一半，作为黑洞扩增的吸收物品件数条件
+                        # limit_count = (2 * math.pi * (self.attract_radius**3 - (self.radius - 3)**3)) / 3
+                        # print '-----------------------> limit_count =', limit_count
+
+                        if self.kill_count != 0 and self.kill_count % 300 == 0:
+                            # 设置半径变化（每次扩增1格）
+                            self.radius += 1
                             # --------begin----------  创建事件数据，广播自定义事件，通知客户端修改黑洞序列帧特效大小
                             eventData = self.CreateEventData()
                             eventData['scale'] = self.radius
@@ -333,21 +275,9 @@ class BlackHoleServerSystem(ServerSystem):
                             # 设置吸收半径（每次扩大为原半径大小的三倍；注意：原半径每次扩增1格）
                             self.attract_radius = self.radius * 3
                             # 调用函数往存储位置坐标的list中添加新坐标，以便在tick中继续销毁方块创建掉落物
-                            self.set_new_block_range_after(self.attract_radius, self.dict['x'], self.dict['y'],
-                                                     self.dict['z'])
+                            self.set_new_block_range(self.attract_radius, self.dict['x'], self.dict['y'],
+                                                           self.dict['z'])
                             # 待加：此处还需设置吸收速度随半径大小的变化规则（“当前大小的三倍？”）
-                            # 黑洞变化计数
-                            self.change_count += 1
-                            # print '-----------------------------------------------------------------------------------------> change_time = ', self.change_count
-
-                # if self.tick_number == 32:
-                #     # 此处 tick_count 代表黑洞杀死的实体数量
-                #     self.tick_count += 1
-                #     # 每杀死一个实体时，将吸收半径的开关，开启一次（---非常重要，上边tick执行中设置吸收半径就靠它了，花了接近一个点想出来！---）
-                #     self.set_attract_radius_switch = True
-                #     # 符合条件后，将最终的tick计数归零
-                #     self.tick_number = 0
-                #     print '--------------------------------------------------------------------> kill number = ', self.tick_count
 
     def Destroy(self):
         self.UnListenEvent()
