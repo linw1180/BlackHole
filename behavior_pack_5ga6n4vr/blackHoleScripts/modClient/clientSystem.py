@@ -25,14 +25,84 @@ class BlackHoleClientSystem(ClientSystem):
         self.ListenEvent()
         # 存储序列帧特效实体ID
         self.frameEntityId = 0
+        # 保存ui界面节点
+        self.mDeleteButtonUiNode = None
+        self.mCloseMsgUiNode = None
+
+        # 初始化时进行设备检查，自动切换鼠标和触控
+        comp = clientApi.GetEngineCompFactory().CreateGame(clientApi.GetLevelId())
+        # ret ==> 0：Window；1：IOS；2：Android；-1：其他
+        ret = clientApi.GetPlatform()
+        if ret == 0:
+            # 参数：True:进入鼠标模式，False:退出鼠标模式
+            # PC设备（使用鼠标）
+            comp.SimulateTouchWithMouse(True)
+        else:
+            # 其他设备（使用触控）
+            comp.SimulateTouchWithMouse(False)
+
 
     def ListenEvent(self):
+        self.ListenForEvent(clientApi.GetEngineNamespace(), clientApi.GetEngineSystemName(),
+                            modConfig.UiInitFinishedEvent, self, self.OnUIInitFinished)
         self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.CreateEffectEvent, self, self.OnCreateEffect)
         self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.SetSfxScaleEvent, self, self.OnSetSfxScale)
+        self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.ShowDeleteButtonEvent, self, self.OnShowDeleteButton)
+        self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.RemoveButtonUiEvent, self, self.OnRemoveButtonUi)
 
     def UnListenEvent(self):
+        self.UnListenForEvent(clientApi.GetEngineNamespace(), clientApi.GetEngineSystemName(),
+                              modConfig.UiInitFinishedEvent, self, self.OnUIInitFinished)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.CreateEffectEvent, self, self.OnCreateEffect)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.SetSfxScaleEvent, self, self.OnSetSfxScale)
+        self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.ShowDeleteButtonEvent, self, self.OnShowDeleteButton)
+        self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.RemoveButtonUiEvent, self, self.OnRemoveButtonUi)
+
+    def ShowDeleteMsg(self):
+        """
+        删除所有黑洞后，给玩家信息提示，展示删除成功的页面
+        """
+        # 注册信息提示和关闭按钮的UI
+        clientApi.RegisterUI(modConfig.ModName, modConfig.CloseMsgUiName, modConfig.CloseMsgUiPyClsPath,
+                                    modConfig.CloseMsgUiScreenDef)
+        # 创建UI
+        self.mCloseMsgUiNode = clientApi.CreateUI(modConfig.ModName, modConfig.CloseMsgUiName, {"isHud": 1})
+
+    def OnRemoveButtonUi(self, args):
+        """
+        当前若不是手持黑洞终止器，就不展现(删除)删除黑洞按钮UI界面
+        """
+        print'------------------------------------------------------------'
+        if self.mDeleteButtonUiNode:
+            self.mDeleteButtonUiNode.SetRemove()
+
+    def OnShowDeleteButton(self, args):
+        """
+        手持黑洞终止器时，显示删除按钮UI界面
+        """
+        # 注册删除按钮UI 详细解释参照《UI API》
+        flag = clientApi.RegisterUI(modConfig.ModName, modConfig.DeleteButtonUiName, modConfig.DeleteButtonUiPyClsPath,
+                                    modConfig.DeleteButtonUiScreenDef)
+        print ("=================flag==================", flag)
+        # 创建UI
+        self.mDeleteButtonUiNode = clientApi.CreateUI(modConfig.ModName, modConfig.DeleteButtonUiName, {"isHud": 1})
+        print ("self.mDeleteButtonUiNode", self.mDeleteButtonUiNode)
+        if self.mDeleteButtonUiNode:
+            print ("=============if===========")
+
+    # 初始化创建UI（在此处不需要，其他地方可套用里边注册UI方式）
+    def OnUIInitFinished(self, args):
+        print '-------------------------------------------------------------------------------- args =', args
+        # # 注册UI 详细解释参照《UI API》
+        # flag = clientApi.RegisterUI(modConfig.ModName, modConfig.BlackHoleUiName, modConfig.BlackHoleUiPyClsPath,
+        #                      modConfig.BlackHoleUiScreenDef)
+        # print ("=================flag==================", flag)
+        # # 创建UI
+        # self.mBlackHoleUiNode = clientApi.CreateUI(modConfig.ModName, modConfig.BlackHoleUiName, {"isHud": 1})
+        # print ("self.mBlackHoleUiNode", self.mBlackHoleUiNode)
+        # if self.mBlackHoleUiNode:
+        #     print ("=============if===========")
+            # self.mBlackHoleUiNode.Init()
 
     def OnSetSfxScale(self, args):
         """
@@ -64,6 +134,11 @@ class BlackHoleClientSystem(ClientSystem):
         :param args: 玩家ID，方块命名空间和方块位置信息
         :return:
         """
+
+        # 如果之前创建过黑洞，则先把之前的销毁，再进行新的创建
+        if self.frameEntityId:
+            self.removeSfx(self.frameEntityId)
+
         # 固定位置播放======================================================================
 
         # 获取传过来的dict中点击方块的位置信息

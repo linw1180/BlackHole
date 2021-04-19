@@ -1,0 +1,6 @@
+{
+    "ui_defs": [
+        "ui/deleteButtonUi.json",
+        "ui/closeMsgUi.json"
+    ]
+}

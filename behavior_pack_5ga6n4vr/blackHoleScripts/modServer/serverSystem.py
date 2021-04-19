@@ -43,16 +43,49 @@ class BlackHoleServerSystem(ServerSystem):
         # 存储坐标的list
         self.coordinate_list = []
 
-        self.test = 0
+        self.time_count = 0
+        self.test = 10
+        self.message_switch = False
 
     def ListenEvent(self):
         # self.DefineEvent(modConfig.CreateEffectEvent)  此定义事件已过期，此处写不写都无作用
         self.ListenForEvent(Namespace, SystemName, modConfig.ServerItemUseOnEvent, self, self.OnServerItemUseOnEvent)
         self.ListenForEvent(Namespace, SystemName, modConfig.OnScriptTickServer, self, self.OnScriptTickServer)
+        self.ListenForEvent(Namespace, SystemName, modConfig.OnCarriedNewItemChangedServerEvent, self,
+                            self.OnCarriedNewItemChangedServer)
+        self.ListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.RemoveAllAttractEvent,
+                            self, self.OnRemoveAllAttract)
 
     def UnListenEvent(self):
         self.UnListenForEvent(Namespace, SystemName, modConfig.ServerItemUseOnEvent, self, self.OnServerItemUseOnEvent)
         self.UnListenForEvent(Namespace, SystemName, modConfig.OnScriptTickServer, self, self.OnScriptTickServer)
+        self.UnListenForEvent(Namespace, SystemName, modConfig.OnCarriedNewItemChangedServerEvent, self,
+                              self.OnCarriedNewItemChangedServer)
+        self.UnListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.RemoveAllAttractEvent,
+                            self, self.OnRemoveAllAttract)
+
+    def OnRemoveAllAttract(self, args):
+        """
+        取消所有黑洞吸引效果
+        """
+        # 关闭使用tick开关控制的函数（主要是向量牵引实体和销毁方块并创建掉落物这两个函数）
+        self.flag = False
+
+    def OnCarriedNewItemChangedServer(self, args):
+        """
+        玩家切换主手物品时触发该事件
+        """
+        print '333333333333333 args =', args
+        if args['newItemName'] == 'black_hole:black_hole_destroy':
+            eventData = self.CreateEventData()
+            eventData['newItemName'] = args['newItemName']
+            # 广播事件到客户端，通知客户端展现删除按钮
+            self.BroadcastToAllClient(modConfig.ShowDeleteButtonEvent, eventData)
+        else:
+            eventData = self.CreateEventData()
+            eventData['newItemName'] = args['newItemName']
+            # 广播事件到客户端，通知客户端删除UI（不是使用黑洞终止器的话不需要展现删除按钮界面）
+            self.BroadcastToAllClient(modConfig.RemoveButtonUiEvent, eventData)
 
     def OnServerItemUseOnEvent(self, args):
         """
@@ -66,34 +99,58 @@ class BlackHoleServerSystem(ServerSystem):
         evenData['y'] = args["y"]
         evenData['z'] = args["z"]
         evenData['blockName'] = args['blockName']
-        # 广播CreateEffectEvent事件通知客户端创建特效
-        self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
+        # 将数据存入全局变量，供其他函数调用
+        self.dict['playerId'] = args["entityId"]
+        self.dict['x'] = args["x"]
+        self.dict['y'] = args["y"]
+        self.dict['z'] = args["z"]
+        self.dict['blockName'] = args['blockName']
 
         # 获取玩家物品，支持获取背包，盔甲栏，副手以及主手物品
         comp = serverApi.GetEngineCompFactory().CreateItem(args['entityId'])
         item_dict = comp.GetPlayerItem(serverApi.GetMinecraftEnum().ItemPosType.CARRIED, 0)
         # 如果玩家手持物品为黑洞制造器，则进行相关操作
         if item_dict['itemName'] == 'black_hole:black_hole_create':
-            # 将数据存入全局变量，供其他函数调用
-            self.dict['playerId'] = args["entityId"]
-            self.dict['x'] = args["x"]
-            self.dict['y'] = args["y"]
-            self.dict['z'] = args["z"]
-            self.dict['blockName'] = args['blockName']
 
-            # 每次使用黑洞制造器创建黑洞前
-            # 重新关闭使用tick开关控制的函数，防止重新创建新黑洞后，旧黑洞开启的tick开关控制的函数还在执行
+            # 恢复倒数时初始数据为10（避免二次创建黑洞，倒计时读数错误）
+            self.test = 10
+
+            # 初始化数据
             self.flag = False
-            # 清空坐标数组，处理脏数据，便于后边新黑洞初始吸收范围内方块的销毁与掉落物的创建
-            self.coordinate_list = []
-            # 清空杀死的实体计数
-            self.kill_count = 0
 
-            # 调用函数，向数组中添加初始吸收半径为9的球形范围内所有方块坐标
-            self.set_new_block_range(self.attract_radius, args["x"], args["y"], args["z"])
+            # 打开在tick中执行的函数开关，在聊天框显示倒计时，倒计时刷新速度1s一次，10s后执行功能并关闭消息提示
+            self.message_switch = True
 
-            # 打标记，作为控制开关，决定是否tick调用
-            self.flag = True
+            # 延时10秒执行黑洞的创建
+            comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
+            comp.AddTimer(10.0, self.block_hole_ready, args, evenData)
+
+    def block_hole_ready(self, args, evenData):
+
+        # 关闭消息打印开关
+        self.message_switch = False
+
+        # 广播CreateEffectEvent事件通知客户端创建特效
+        self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
+
+        # 每次使用黑洞制造器创建黑洞前
+        # 重新关闭使用tick开关控制的函数，防止重新创建新黑洞后，旧黑洞开启的tick开关控制的函数还在执行
+        self.flag = False
+        # 清空坐标数组，处理脏数据，便于后边新黑洞初始吸收范围内方块的销毁与掉落物的创建
+        self.coordinate_list = []
+        # 清空杀死的实体计数
+        self.kill_count = 0
+
+        # 调用函数，向数组中添加初始吸收半径为9的球形范围内所有方块坐标
+        self.set_new_block_range(self.attract_radius, args["x"], args["y"], args["z"])
+
+        # 打标记，作为控制开关，决定是否tick调用
+        self.flag = True
+
+    def show_message(self, entity_id, time):
+        # 10s后执行功能，在聊天框显示倒计时，倒计时刷新速度1s一次
+        comp = serverApi.GetEngineCompFactory().CreateMsg(entity_id)
+        comp.NotifyOneMessage(entity_id, "注意，黑洞将在%ds后启动，请立即离开" % time, "§4")
 
     def set_new_block_range(self, ar, x, y, z):
         """
@@ -147,10 +204,10 @@ class BlackHoleServerSystem(ServerSystem):
     def OnScriptTickServer(self):
 
         self.count += 1
-        # 每1/15秒触发一次
-        if self.count % 2 == 0:
-            pass
-            # print '-------------------------------------------------- tick', self.count
+        # 每1/15秒触发一次（提示信息倒计时10秒，每秒刷新一次）
+        if self.message_switch and self.count % 30 == 0:
+            self.show_message(self.dict['playerId'], self.test)
+            self.test -= 1
 
         # tick 调用
         # 黑洞初始特效创建完成后，调用自定义函数，实现以点击方块位置为范围中心，以点击方块为吸引中心，使用向量进行的所有实体牵引功能
@@ -169,7 +226,7 @@ class BlackHoleServerSystem(ServerSystem):
                     # 调用自定义函数，销毁方块并创建掉落物
                     self.clear_and_create_block(player_id, blockPos)
 
-        print '----------------------------------------->> list ', len(self.coordinate_list)
+        # print '----------------------------------------->> list ', len(self.coordinate_list)
 
     # 在tick函数中被调用，满足条件后tick执行，进行对范围内实体的向量牵引
     # 实现以点击方块处黑洞为中心，一定初始吸收半径范围内的吸引功能

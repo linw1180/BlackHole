@@ -15,12 +15,26 @@ ModClientSystemPath = 'blackHoleScripts.modClient.clientSystem.BlackHoleClientSy
 
 # Client Event
 # engine
+UiInitFinishedEvent = "UiInitFinished"
 # custom
+RemoveAllAttractEvent = 'RemoveAllAttractEvent'
 
 # Server Event
 # engine
 OnScriptTickServer = 'OnScriptTickServer'
 ServerItemUseOnEvent = 'ServerItemUseOnEvent'
+OnCarriedNewItemChangedServerEvent = 'OnCarriedNewItemChangedServerEvent'
 # custom
 CreateEffectEvent = 'CreateEffectEvent'
 SetSfxScaleEvent = 'SetSfxScaleEvent'
+ShowDeleteButtonEvent = 'ShowDeleteButtonEvent'
+RemoveButtonUiEvent = 'RemoveButtonUiEvent'
+
+# UI
+DeleteButtonUiName = "deleteButtonUi"
+DeleteButtonUiPyClsPath = "blackHoleScripts.modClient.ui.deleteButtonUi.DeleteButtonUiScreen"
+DeleteButtonUiScreenDef = "deleteButtonUi.main"
+
+CloseMsgUiName = "closeMsgUi"
+CloseMsgUiPyClsPath = "blackHoleScripts.modClient.ui.closeMsgUi.CloseMsgUiScreen"
+CloseMsgUiScreenDef = "closeMsgUi.main"
