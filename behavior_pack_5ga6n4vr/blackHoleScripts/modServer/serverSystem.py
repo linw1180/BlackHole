@@ -92,25 +92,25 @@ class BlackHoleServerSystem(ServerSystem):
         ServerItemUseOnEvent 的回调函数
         玩家在对方块使用物品之前服务端抛出的事件。注：如果需要取消物品的使用需要同时在ClientItemUseOnEvent和ServerItemUseOnEvent中将ret设置为True才能正确取消。
         """
-        # 创建事件数据
-        evenData = self.CreateEventData()
-        evenData["playerId"] = args["entityId"]
-        evenData['x'] = args["x"]
-        evenData['y'] = args["y"]
-        evenData['z'] = args["z"]
-        evenData['blockName'] = args['blockName']
-        # 将数据存入全局变量，供其他函数调用
-        self.dict['playerId'] = args["entityId"]
-        self.dict['x'] = args["x"]
-        self.dict['y'] = args["y"]
-        self.dict['z'] = args["z"]
-        self.dict['blockName'] = args['blockName']
-
         # 获取玩家物品，支持获取背包，盔甲栏，副手以及主手物品
         comp = serverApi.GetEngineCompFactory().CreateItem(args['entityId'])
         item_dict = comp.GetPlayerItem(serverApi.GetMinecraftEnum().ItemPosType.CARRIED, 0)
         # 如果玩家手持物品为黑洞制造器，则进行相关操作
         if item_dict['itemName'] == 'black_hole:black_hole_create':
+
+            # 创建事件数据
+            evenData = self.CreateEventData()
+            evenData["playerId"] = args["entityId"]
+            evenData['x'] = args["x"]
+            evenData['y'] = args["y"]
+            evenData['z'] = args["z"]
+            evenData['blockName'] = args['blockName']
+            # 将数据存入全局变量，供其他函数调用
+            self.dict['playerId'] = args["entityId"]
+            self.dict['x'] = args["x"]
+            self.dict['y'] = args["y"]
+            self.dict['z'] = args["z"]
+            self.dict['blockName'] = args['blockName']
 
             # 恢复倒数时初始数据为10（避免二次创建黑洞，倒计时读数错误）
             self.test = 10
@@ -148,6 +148,9 @@ class BlackHoleServerSystem(ServerSystem):
         self.flag = True
 
     def show_message(self, entity_id, time):
+        """
+        左上角提示玩家黑洞启动倒计时信息
+        """
         # 10s后执行功能，在聊天框显示倒计时，倒计时刷新速度1s一次
         comp = serverApi.GetEngineCompFactory().CreateMsg(entity_id)
         comp.NotifyOneMessage(entity_id, "注意，黑洞将在%ds后启动，请立即离开" % time, "§4")
