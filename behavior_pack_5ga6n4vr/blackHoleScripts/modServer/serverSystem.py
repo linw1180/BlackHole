@@ -270,8 +270,8 @@ class BlackHoleServerSystem(ServerSystem):
         entity_ids = comp.GetEntitiesInSquareArea(None, startPos, endPos, 0)
 
         # ---------------去除玩家ID，去除黑洞对玩家的效果-----------------
-        if player_id in entity_ids:
-            entity_ids.remove(player_id)
+        # if player_id in entity_ids:
+        #     entity_ids.remove(player_id)
 
         # print '-----------------------------> attract =', len(entity_ids)
 
@@ -281,9 +281,11 @@ class BlackHoleServerSystem(ServerSystem):
             type_comp = serverApi.GetEngineCompFactory().CreateEngineType(entityId)
             # 获取实体类型
             entityType = type_comp.GetEngineType()
-            if not entityType:
-                continue
+            # if not entityType:
+            #     continue
 
+            # print '666 ------> ', serverApi.GetEngineCompFactory().CreatePos(player_id).GetPos()
+            # print '666 ------> entityType', serverApi.GetEngineCompFactory().CreateEngineType(player_id).GetEngineType()
             # 获取实体位置坐标
             comp = serverApi.GetEngineCompFactory().CreatePos(entityId)
             entityPos = comp.GetPos()
@@ -311,13 +313,19 @@ class BlackHoleServerSystem(ServerSystem):
                 else:
                     # 非掉落物实体的向量移动逻辑（最后需要写成可变化的）
                     # SetPos接口------------------------
-                    comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
-                                 (float(y - entityPosY) / 200) + entityPosY,
-                                 (float(z - entityPosZ) / 200) + entityPosZ))
+                    # comp.SetPos(((float(x - entityPosX) / 200) + entityPosX,
+                    #              (float(y - entityPosY) / 200) + entityPosY,
+                    #              (float(z - entityPosZ) / 200) + entityPosZ))
 
                     # comp.SetPos(((float(x - entityPosX) / 500) + entityPosX,
                     #              (float(y - entityPosY) / 500) + entityPosY,
                     #              (float(z - entityPosZ) / 500) + entityPosZ))
+
+                    # set_motion接口------------------------
+                    # pos_z = (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200)
+                    # set_motion(entityId, pos_z)
+                    pos_z = (float(x - entityPosX) / 500, float(y - entityPosY) / 500, float(z - entityPosZ) / 500)
+                    set_motion(entityId, pos_z)
 
                 # 下面代码实现功能：杀死进入黑洞半径大小范围内的实体
                 # 获取黑洞吸收半径范围内所有生物到黑洞中心的距离
