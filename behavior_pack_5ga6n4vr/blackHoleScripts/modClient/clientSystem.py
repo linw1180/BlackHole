@@ -72,7 +72,6 @@ class BlackHoleClientSystem(ClientSystem):
         """
         当前若不是手持黑洞终止器，就不展现(删除)删除黑洞按钮UI界面
         """
-        print'------------------------------------------------------------'
         if self.mDeleteButtonUiNode:
             self.mDeleteButtonUiNode.SetRemove()
 
@@ -81,14 +80,10 @@ class BlackHoleClientSystem(ClientSystem):
         手持黑洞终止器时，显示删除按钮UI界面
         """
         # 注册删除按钮UI 详细解释参照《UI API》
-        flag = clientApi.RegisterUI(modConfig.ModName, modConfig.DeleteButtonUiName, modConfig.DeleteButtonUiPyClsPath,
+        clientApi.RegisterUI(modConfig.ModName, modConfig.DeleteButtonUiName, modConfig.DeleteButtonUiPyClsPath,
                                     modConfig.DeleteButtonUiScreenDef)
-        print ("=================flag==================", flag)
         # 创建UI
         self.mDeleteButtonUiNode = clientApi.CreateUI(modConfig.ModName, modConfig.DeleteButtonUiName, {"isHud": 1})
-        print ("self.mDeleteButtonUiNode", self.mDeleteButtonUiNode)
-        if self.mDeleteButtonUiNode:
-            print ("=============if===========")
 
     # 初始化创建UI（在此处不需要，其他地方可套用里边注册UI方式）
     def OnUIInitFinished(self, args):

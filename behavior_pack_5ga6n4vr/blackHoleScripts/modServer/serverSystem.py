@@ -37,9 +37,6 @@ class BlackHoleServerSystem(ServerSystem):
         # self.attract_radius = 18
         self.attract_radius = self.radius * 3
 
-        # 打标记用，控制设置吸收半径的开关（在tick中，设置一次就需要关闭）
-        self.set_attract_radius_switch = True
-
         # 存储坐标的list
         self.coordinate_list = []
 
@@ -75,7 +72,6 @@ class BlackHoleServerSystem(ServerSystem):
         """
         玩家切换主手物品时触发该事件
         """
-        print '333333333333333 args =', args
         if args['newItemName'] == 'black_hole:black_hole_destroy':
             eventData = self.CreateEventData()
             eventData['newItemName'] = args['newItemName']
@@ -112,11 +108,30 @@ class BlackHoleServerSystem(ServerSystem):
             self.dict['z'] = args["z"]
             self.dict['blockName'] = args['blockName']
 
+            # ---------------------------------- 初始化数据 --------------------------------
             # 恢复倒数时初始数据为10（避免二次创建黑洞，倒计时读数错误）
             self.test = 10
-
-            # 初始化数据
+            # 重新关闭tick执行的函数
             self.flag = False
+            # 将黑洞相关数据初始化
+            self.count = 0
+            # 用来计数销毁的实体
+            self.kill_count = 0
+            self.tick_count = 0
+            # 黑洞默认初始半径 = 3
+            self.radius = 3
+            # 黑洞初始吸收速度参数（此并非速度，而是控制速度的相关参数；通过控制移动向量大小以达到控制吸收速度的效果）
+            self.speed_param = 200
+            # 吸收半径（注意: 最开始需要在此默认数值基础上再进行操作）
+            # self.attract_radius = 18
+            self.attract_radius = self.radius * 3
+
+            # 存储坐标的list
+            self.coordinate_list = []
+
+            self.time_count = 0
+            # ---------------------------------- 初始化数据 --------------------------------
+
 
             # 打开在tick中执行的函数开关，在聊天框显示倒计时，倒计时刷新速度1s一次，10s后执行功能并关闭消息提示
             self.message_switch = True
