@@ -132,21 +132,21 @@ class BlackHoleServerSystem(ServerSystem):
             self.time_count = 0
             # ---------------------------------- 初始化数据 --------------------------------
 
+            # 创建黑洞特效
+            # 广播CreateEffectEvent事件通知客户端创建特效
+            self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
 
             # 打开在tick中执行的函数开关，在聊天框显示倒计时，倒计时刷新速度1s一次，10s后执行功能并关闭消息提示
             self.message_switch = True
 
-            # 延时10秒执行黑洞的创建
+            # 延时10秒启动黑洞的相关功能
             comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
-            comp.AddTimer(10.0, self.block_hole_ready, args, evenData)
+            comp.AddTimer(10.0, self.block_hole_ready, args)
 
-    def block_hole_ready(self, args, evenData):
+    def block_hole_ready(self, args):
 
         # 关闭消息打印开关
         self.message_switch = False
-
-        # 广播CreateEffectEvent事件通知客户端创建特效
-        self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
 
         # 每次使用黑洞制造器创建黑洞前
         # 重新关闭使用tick开关控制的函数，防止重新创建新黑洞后，旧黑洞开启的tick开关控制的函数还在执行
