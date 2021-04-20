@@ -141,7 +141,7 @@ class BlackHoleServerSystem(ServerSystem):
 
             # 延时10秒启动黑洞的相关功能
             comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
-            comp.AddTimer(10.0, self.block_hole_ready, args)
+            comp.AddTimer(11.0, self.block_hole_ready, args)
 
     def block_hole_ready(self, args):
 
