@@ -136,7 +136,7 @@ class BlackHoleServerSystem(ServerSystem):
 
             # 创建黑洞特效
             # 广播CreateEffectEvent事件通知客户端创建特效
-            # self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
+            self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
 
             # 打开在tick中执行的函数开关，在聊天框显示倒计时，倒计时刷新速度1s一次，10s后执行功能并关闭消息提示
             self.message_switch = True
@@ -188,6 +188,7 @@ class BlackHoleServerSystem(ServerSystem):
                         # 每次往存储坐标的list末尾添加方块坐标，供后续销毁方块并创建掉落物使用
                         self.coordinate_list.append((x + dx, y + dy, z + dz))
 
+    # 效果不好
     def set_new_block_range_test(self, ar, x, y, z):
 
         # 获取正方形范围内，球形范围外的坐标，添加到坐标数组中
@@ -207,6 +208,8 @@ class BlackHoleServerSystem(ServerSystem):
         for n in self.num_list:
             for m in self.temp_list:
                 if m[0]**2 + m[1]**2 + m[2]**2 == n:
+                    # print 'n ===========================', n
+                    # print 'm --------------------------------------', m
                     self.coordinate_list.append(m)
 
         # 获取扩增后新加的球上的坐标，添加到坐标数组中
@@ -221,8 +224,7 @@ class BlackHoleServerSystem(ServerSystem):
                             continue
                         # 每次往存储坐标的list末尾添加方块坐标，供后续销毁方块并创建掉落物使用
                         self.coordinate_list.append((x + dx, y + dy, z + dz))
-
-    # 效果不好（pass）
+    # 效果不好
     def set_new_block_range_after(self, ar, x, y, z):
         """
         只获取扩增后范围内新增的方块坐标，并添加到坐标数组末尾（使用集合之间的补集来实现）
@@ -414,7 +416,7 @@ class BlackHoleServerSystem(ServerSystem):
                     ret = self.DestroyEntity(entityId)
                     if ret:
                         self.kill_count += 1
-                        print '---------------------------------------------------------------- kill =', self.kill_count
+                        # print '---------------------------------------------------------------- kill =', self.kill_count
                         # --------------- 此处写黑洞效果随吸收的实体数的变化逻辑 ---------------
                         # if self.kill_count != 0 and self.kill_count % 200 == 0:
                         # 计算出吸收半径的圆和黑洞杀死半径的圆之间的体积的一半，作为黑洞扩增的吸收物品件数条件
@@ -432,7 +434,7 @@ class BlackHoleServerSystem(ServerSystem):
                             # 设置吸收半径（每次扩大为原半径大小的三倍；注意：原半径每次扩增1格）
                             self.attract_radius = self.radius * 3
                             # 调用函数往存储位置坐标的list中添加新坐标，以便在tick中继续销毁方块创建掉落物
-                            self.set_new_block_range_test(self.attract_radius, self.dict['x'], self.dict['y'],
+                            self.set_new_block_range(self.attract_radius, self.dict['x'], self.dict['y'],
                                                            self.dict['z'])
                             # 待加：此处还需设置吸收速度随半径大小的变化规则（“当前大小的三倍？”）
 
