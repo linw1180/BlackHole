@@ -70,10 +70,12 @@ class BlackHoleClientSystem(ClientSystem):
 
     def OnRemoveButtonUi(self, args):
         """
-        当前若不是手持黑洞终止器，就不展现(删除)删除黑洞按钮UI界面
+        当前若不是手持黑洞终止器，就不展现(删除)删除黑洞按钮UI界面和删除成功提示UI页面
         """
         if self.mDeleteButtonUiNode:
             self.mDeleteButtonUiNode.SetRemove()
+        if self.mCloseMsgUiNode:
+            self.mCloseMsgUiNode.SetRemove()
 
     def OnShowDeleteButton(self, args):
         """
