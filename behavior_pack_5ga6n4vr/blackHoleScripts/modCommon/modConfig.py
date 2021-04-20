@@ -16,6 +16,7 @@ ModClientSystemPath = 'blackHoleScripts.modClient.clientSystem.BlackHoleClientSy
 # Client Event
 # engine
 UiInitFinishedEvent = "UiInitFinished"
+OnScriptTickClient = 'OnScriptTickClient'
 # custom
 RemoveAllAttractEvent = 'RemoveAllAttractEvent'
 

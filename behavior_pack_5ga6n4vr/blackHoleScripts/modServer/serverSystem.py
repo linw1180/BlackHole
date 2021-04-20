@@ -320,7 +320,7 @@ class BlackHoleServerSystem(ServerSystem):
                     # 调用自定义函数，销毁方块并创建掉落物
                     self.clear_and_create_block(player_id, blockPos)
 
-        print '----------------------------------------->> list ', len(self.coordinate_list)
+        # print '----------------------------------------->> list ', len(self.coordinate_list)
 
     # 在tick函数中被调用，满足条件后tick执行，进行对范围内实体的向量牵引
     # 实现以点击方块处黑洞为中心，一定初始吸收半径范围内的吸引功能
