@@ -43,6 +43,8 @@ class BlackHoleServerSystem(ServerSystem):
         self.time_count = 0
         self.test = 10
         self.message_switch = False
+        self.num_list = []
+        self.temp_list = []
 
     def ListenEvent(self):
         # self.DefineEvent(modConfig.CreateEffectEvent)  此定义事件已过期，此处写不写都无作用
@@ -134,14 +136,15 @@ class BlackHoleServerSystem(ServerSystem):
 
             # 创建黑洞特效
             # 广播CreateEffectEvent事件通知客户端创建特效
-            self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
+            # self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)
 
             # 打开在tick中执行的函数开关，在聊天框显示倒计时，倒计时刷新速度1s一次，10s后执行功能并关闭消息提示
             self.message_switch = True
 
             # 延时10秒启动黑洞的相关功能
             comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
-            comp.AddTimer(11.0, self.block_hole_ready, args)
+            # comp.AddTimer(11.0, self.block_hole_ready, args)
+            comp.AddTimer(1.0, self.block_hole_ready, args)  # 测试用
 
     def block_hole_ready(self, args):
 
@@ -184,6 +187,77 @@ class BlackHoleServerSystem(ServerSystem):
                             continue
                         # 每次往存储坐标的list末尾添加方块坐标，供后续销毁方块并创建掉落物使用
                         self.coordinate_list.append((x + dx, y + dy, z + dz))
+
+    def set_new_block_range_test(self, ar, x, y, z):
+
+        # 获取正方形范围内，球形范围外的坐标，添加到坐标数组中
+        ar = ar - 3  # 删除原先半径球和方形之间多余的坐标
+        for nx in range(x - ar, x + ar):
+            for ny in range(y - ar, y + ar):
+                for nz in range(z - ar, z + ar):
+                    if ((nx - x) ** 2 + (ny - y) ** 2 + (nz - z) ** 2) > ar ** 2:
+                        # 获取坐标信息，存入全局list中
+                        num = nx ** 2 + ny ** 2 + nz ** 2
+                        self.num_list.append(num)
+                        blockPos = (nx, ny, nz)
+                        self.temp_list.append(blockPos)
+                        # 每次往list末尾添加元素
+                        # self.coordinate_list.append(blockPos)
+        self.num_list.sort()
+        for n in self.num_list:
+            for m in self.temp_list:
+                if m[0]**2 + m[1]**2 + m[2]**2 == n:
+                    self.coordinate_list.append(m)
+
+        # 获取扩增后新加的球上的坐标，添加到坐标数组中
+        ar = ar + 3  # 删除扩增半径的球坐标
+        for r in xrange(ar - 3, ar):
+            for dx in xrange(-r, r + 1):
+                for dy in xrange(-r, r + 1):
+                    for dz in xrange(-r, r + 1):
+                        if abs(dx) < r and abs(dy) != r and abs(dz) != r:
+                            continue
+                        if ar ** 2 < Vector3(dx, dy, dz).LengthSquared():
+                            continue
+                        # 每次往存储坐标的list末尾添加方块坐标，供后续销毁方块并创建掉落物使用
+                        self.coordinate_list.append((x + dx, y + dy, z + dz))
+
+    # 效果不好（pass）
+    def set_new_block_range_after(self, ar, x, y, z):
+        """
+        只获取扩增后范围内新增的方块坐标，并添加到坐标数组末尾（使用集合之间的补集来实现）
+        """
+        list_a = []
+        list_b = []
+        for r in xrange(ar):
+            for dx in xrange(-r, r + 1):
+                for dy in xrange(-r, r + 1):
+                    for dz in xrange(-r, r + 1):
+                        if abs(dx) < r and abs(dy) != r and abs(dz) != r:
+                            continue
+                        if ar ** 2 < Vector3(dx, dy, dz).LengthSquared():
+                            continue
+                        # 将扩增后范围内所有坐标存入list_a中
+                        list_a.append((x + dx, y + dy, z + dz))
+
+        for r in xrange(ar - 3):
+            for dx in xrange(-r, r + 1):
+                for dy in xrange(-r, r + 1):
+                    for dz in xrange(-r, r + 1):
+                        if abs(dx) < r and abs(dy) != r and abs(dz) != r:
+                            continue
+                        if (ar - 3) ** 2 < Vector3(dx, dy, dz).LengthSquared():
+                            continue
+                        # 将扩增后范围内所有坐标存入list_b中
+                        list_b.append((x + dx, y + dy, z + dz))
+
+        # 取补集，获取扩增后新增的坐标，加入到坐标数组末尾
+        set_a = set(list_a)
+        set_b = set(list_b)
+        set_c = set_a.difference(set_b)
+        list_c = list(set_c)
+        for i in list_c:
+            self.coordinate_list.append(i)
 
     # def set_new_block_range_after(self, r, x, y, z):
     #     """
@@ -244,7 +318,7 @@ class BlackHoleServerSystem(ServerSystem):
                     # 调用自定义函数，销毁方块并创建掉落物
                     self.clear_and_create_block(player_id, blockPos)
 
-        # print '----------------------------------------->> list ', len(self.coordinate_list)
+        print '----------------------------------------->> list ', len(self.coordinate_list)
 
     # 在tick函数中被调用，满足条件后tick执行，进行对范围内实体的向量牵引
     # 实现以点击方块处黑洞为中心，一定初始吸收半径范围内的吸引功能
@@ -324,7 +398,7 @@ class BlackHoleServerSystem(ServerSystem):
                     # set_motion接口------------------------
                     # pos_z = (float(x - entityPosX) / 200, float(y - entityPosY) / 200, float(z - entityPosZ) / 200)
                     # set_motion(entityId, pos_z)
-                    pos_z = (float(x - entityPosX) / 500, float(y - entityPosY) / 500, float(z - entityPosZ) / 500)
+                    pos_z = (float(x - entityPosX) / 300, float(y - entityPosY) / 300, float(z - entityPosZ) / 300)
                     set_motion(entityId, pos_z)
 
                 # 下面代码实现功能：杀死进入黑洞半径大小范围内的实体
@@ -358,7 +432,7 @@ class BlackHoleServerSystem(ServerSystem):
                             # 设置吸收半径（每次扩大为原半径大小的三倍；注意：原半径每次扩增1格）
                             self.attract_radius = self.radius * 3
                             # 调用函数往存储位置坐标的list中添加新坐标，以便在tick中继续销毁方块创建掉落物
-                            self.set_new_block_range(self.attract_radius, self.dict['x'], self.dict['y'],
+                            self.set_new_block_range_test(self.attract_radius, self.dict['x'], self.dict['y'],
                                                            self.dict['z'])
                             # 待加：此处还需设置吸收速度随半径大小的变化规则（“当前大小的三倍？”）
 

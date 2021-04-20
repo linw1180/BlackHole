@@ -26,19 +26,15 @@ class DeleteButtonUiScreen(ScreenNode):
 
     # Create函数是继承自ScreenNode，会在UI创建完成后被调用
     def Create(self):
-        print ("=============Create============")
         self.AddTouchEventHandler(self.mDeleteButton, self.OnDeleteButtonTouch, {"isSwallow": True})
 
     def Init(self):
-        print ("=================Init test====================")
         pass
 
     def OnDeleteButtonTouch(self, args):
         """
         点击删除按钮：实现删除黑洞特效、取消黑洞吸引效果，达到终止黑洞的效果
         """
-        print '99999999999999999999999 test =', args
-
         # 获取客户端System（以便下边可以通过客户端系统调用系统中相关方法和变量）
         blackHoleClientSystem = clientApi.GetSystem(modConfig.ModName, modConfig.ModClientSystemName)
 
