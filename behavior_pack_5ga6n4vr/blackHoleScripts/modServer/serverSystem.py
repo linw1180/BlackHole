@@ -12,7 +12,6 @@ ServerSystem = serverApi.GetServerSystemCls()
 SystemName = serverApi.GetEngineSystemName()
 Namespace = serverApi.GetEngineNamespace()
 
-
 # 服务端系统
 class BlackHoleServerSystem(ServerSystem):
 
@@ -340,7 +339,7 @@ class BlackHoleServerSystem(ServerSystem):
                     # 调用自定义函数，销毁方块并创建掉落物
                     self.clear_and_create_block(player_id, blockPos)
 
-        # print '----------------------------------------->> list ', len(self.coordinate_list)
+        print '----------------------------------------->> list ', len(self.coordinate_list)
 
     # 在tick函数中被调用，满足条件后tick执行，进行对范围内实体的向量牵引
     # 实现以点击方块处黑洞为中心，一定初始吸收半径范围内的吸引功能
@@ -390,10 +389,10 @@ class BlackHoleServerSystem(ServerSystem):
                 if entityType and entityType == 64:
                     # 掉落物实体的向量移动逻辑（最后需要写成可变化的）
                     # SetPos接口------------------------
-                    comp.SetPos(((float(x - entityPosX) / 800) + entityPosX,
-                                 (float(y - 3 - entityPosY) / 50) + entityPosY,
-                                 (float(z - entityPosZ) / 800) + entityPosZ))
-                    pos_z = (float(x - entityPosX) / 800, float(y - entityPosY) / 800, float(z - entityPosZ) / 800)
+                    comp.SetPos(((float(x - entityPosX) / 800 * 3) + entityPosX,
+                                 (float(y - 3 - entityPosY) / 50 * 3) + entityPosY,
+                                 (float(z - entityPosZ) / 800 * 3) + entityPosZ))
+                    pos_z = (float(x - entityPosX) / 800 * 3, float(y - entityPosY) / 800 * 3, float(z - entityPosZ) / 800 * 3)
                     # set_motion接口------------------------
                     set_motion(entityId, pos_z)
 
