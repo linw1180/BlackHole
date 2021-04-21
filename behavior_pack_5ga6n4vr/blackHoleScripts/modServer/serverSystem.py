@@ -42,6 +42,7 @@ class BlackHoleServerSystem(ServerSystem):
         self.time_count = 0
         self.test = 10
         self.message_switch = False
+        self.last_message_switch = False
         self.num_list = []
         self.temp_list = []
 
@@ -150,11 +151,14 @@ class BlackHoleServerSystem(ServerSystem):
 
             # 打开在tick中执行的函数开关，在聊天框显示倒计时，倒计时刷新速度1s一次，10s后执行功能并关闭消息提示
             self.message_switch = True
+            self.last_message_switch = True
 
             # 延时10秒启动黑洞的相关功能
             comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
             comp.AddTimer(11.0, self.block_hole_ready, args)
             # comp.AddTimer(1.0, self.block_hole_ready, args)  # 测试用
+            # 延时到倒计时10秒结束后，打印黑洞正在吸收物品的提示信息
+            comp.AddTimer(12.0, self.last_message_func)
 
     def block_hole_ready(self, args):
 
@@ -175,13 +179,25 @@ class BlackHoleServerSystem(ServerSystem):
         # 打标记，作为控制开关，决定是否tick调用
         self.flag = True
 
+    def last_message_func(self):
+        # 关闭最后一条消息打印开关
+        self.message_switch = False
+
     def show_message(self, entity_id, time):
         """
         左上角提示玩家黑洞启动倒计时信息
         """
-        # 10s后执行功能，在聊天框显示倒计时，倒计时刷新速度1s一次
+        if time:
+            # 10s后执行功能，在聊天框显示倒计时，倒计时刷新速度1s一次
+            comp = serverApi.GetEngineCompFactory().CreateMsg(entity_id)
+            comp.NotifyOneMessage(entity_id, "注意，黑洞将在%ds后启动，请立即离开" % time, "§4")
+
+    def show_last_message(self, entity_id):
+        """
+        最后1秒倒计时后，展示 “黑洞正在吸收周围物品。。。” 信息
+        """
         comp = serverApi.GetEngineCompFactory().CreateMsg(entity_id)
-        comp.NotifyOneMessage(entity_id, "注意，黑洞将在%ds后启动，请立即离开" % time, "§4")
+        comp.NotifyOneMessage(entity_id, "黑洞正在吸收周围物品...", "§4")
 
     def set_new_block_range(self, ar, x, y, z):
         """
@@ -321,6 +337,9 @@ class BlackHoleServerSystem(ServerSystem):
         if self.message_switch and self.count % 30 == 0:
             self.show_message(self.dict['playerId'], self.test)
             self.test -= 1
+
+        if self.last_message_switch and self.count % 330 == 0:
+            self.show_last_message(self.dict['playerId'])
 
         # tick 调用
         # 黑洞初始特效创建完成后，调用自定义函数，实现以点击方块位置为范围中心，以点击方块为吸引中心，使用向量进行的所有实体牵引功能
