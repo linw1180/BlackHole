@@ -32,6 +32,8 @@ class BlackHoleClientSystem(ClientSystem):
         # tick计数
         self.tickCount = 0
 
+        # 黑洞对玩家的效果功能开关
+        self.attract_switch = False
         # 初始化来自服务端的黑洞数据
         # 初始化黑洞吸收半径
         self.ar = 0
@@ -61,6 +63,7 @@ class BlackHoleClientSystem(ClientSystem):
         self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.ShowDeleteButtonEvent, self, self.OnShowDeleteButton)
         self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.RemoveButtonUiEvent, self, self.OnRemoveButtonUi)
         self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.PlayerAboutEvent, self, self.OnPlayerAbout)
+        self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.CloseAttractSwitchEvent, self, self.OnCloseAttractSwitch)
 
     def UnListenEvent(self):
         self.UnListenForEvent(clientApi.GetEngineNamespace(), clientApi.GetEngineSystemName(),
@@ -70,11 +73,20 @@ class BlackHoleClientSystem(ClientSystem):
         self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.ShowDeleteButtonEvent, self, self.OnShowDeleteButton)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.RemoveButtonUiEvent, self, self.OnRemoveButtonUi)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.PlayerAboutEvent, self, self.OnPlayerAbout)
+        self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.CloseAttractSwitchEvent, self, self.OnCloseAttractSwitch)
+
+    def OnCloseAttractSwitch(self, args):
+        """
+        OnCloseAttractSwitch事件的回调函数，响应服务端，关闭黑洞对玩家的吸引开关
+        """
+        self.attract_switch = False
 
     def OnPlayerAbout(self, args):
         """
         接受来自服务端的数据：黑洞吸收半径 ar 和黑洞位置坐标 x, y, z, 并存入成员变量中（黑洞创建后才产生数据）
         """
+        # 黑洞对玩家的效果功能开关
+        self.attract_switch = True
         if args['ar']:
             self.ar = args['ar']
         if args['x']:
@@ -89,7 +101,7 @@ class BlackHoleClientSystem(ClientSystem):
         服务器tick时触发,1秒有30个tick
         """
         self.tickCount += 1
-        if self.tickCount % 2 == 0:
+        if self.attract_switch and self.tickCount % 2 == 0:
             self.AttractPlayer()
 
     def AttractPlayer(self):

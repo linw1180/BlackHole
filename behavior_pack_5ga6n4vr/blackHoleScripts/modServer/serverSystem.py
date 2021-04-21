@@ -145,6 +145,13 @@ class BlackHoleServerSystem(ServerSystem):
             self.time_count = 0
             # ---------------------------------- 初始化数据 --------------------------------
 
+            # 延时启动黑洞之前，通知客户端关闭吸引开关
+            # 防止之前创建过一次黑洞，再次创建黑洞并延时启动时，玩家会被之前黑洞继续吸引并杀死
+            # 广播事件，通知客户端关闭吸引开关
+            data = self.CreateEventData()
+            data['ar'] = self.attract_radius  # 随便传的事件数据
+            self.BroadcastToAllClient(modConfig.CloseAttractSwitchEvent, data)
+
             # 创建黑洞特效
             # 广播CreateEffectEvent事件通知客户端创建特效
             self.BroadcastToAllClient(modConfig.CreateEffectEvent, evenData)

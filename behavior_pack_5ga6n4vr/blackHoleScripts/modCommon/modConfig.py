@@ -32,6 +32,7 @@ SetSfxScaleEvent = 'SetSfxScaleEvent'
 ShowDeleteButtonEvent = 'ShowDeleteButtonEvent'
 RemoveButtonUiEvent = 'RemoveButtonUiEvent'
 PlayerAboutEvent = 'PlayerAboutEvent'
+CloseAttractSwitchEvent = 'CloseAttractSwitchEvent'
 
 # UI
 DeleteButtonUiName = "deleteButtonUi"
