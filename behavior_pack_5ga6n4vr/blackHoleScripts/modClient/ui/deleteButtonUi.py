@@ -51,3 +51,9 @@ class DeleteButtonUiScreen(ScreenNode):
 
         # ----------------- 黑洞终止后，还需要展现删除成功的信息给玩家 --------------------
         blackHoleClientSystem.ShowDeleteMsg()
+
+        # ----------------- 黑洞终止后，需要将黑洞数据初始化，消除黑洞对玩家的影响（初始化数据后，玩家就不符合牵引条件了） --------------------
+        blackHoleClientSystem.ar = 0
+        blackHoleClientSystem.x = 0
+        blackHoleClientSystem.y = 0
+        blackHoleClientSystem.z = 0

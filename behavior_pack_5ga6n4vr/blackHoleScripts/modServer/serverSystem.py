@@ -54,6 +54,8 @@ class BlackHoleServerSystem(ServerSystem):
                             self.OnCarriedNewItemChangedServer)
         self.ListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.RemoveAllAttractEvent,
                             self, self.OnRemoveAllAttract)
+        self.ListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.KillPlayerEvent,
+                            self, self.OnKillPlayer)
 
     def UnListenEvent(self):
         self.UnListenForEvent(Namespace, SystemName, modConfig.ServerItemUseOnEvent, self, self.OnServerItemUseOnEvent)
@@ -62,6 +64,15 @@ class BlackHoleServerSystem(ServerSystem):
                               self.OnCarriedNewItemChangedServer)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.RemoveAllAttractEvent,
                             self, self.OnRemoveAllAttract)
+        self.UnListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.KillPlayerEvent,
+                              self, self.OnKillPlayer)
+
+    def OnKillPlayer(self, args):
+        """
+        OnKillPlayerEvent的回调函数，回应客户端的请求，杀死进入黑洞半径的玩家
+        """
+        comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
+        comp.KillEntity(args['playerId'])
 
     def OnRemoveAllAttract(self, args):
         """
@@ -143,8 +154,8 @@ class BlackHoleServerSystem(ServerSystem):
 
             # 延时10秒启动黑洞的相关功能
             comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
-            # comp.AddTimer(11.0, self.block_hole_ready, args)
-            comp.AddTimer(1.0, self.block_hole_ready, args)  # 测试用
+            comp.AddTimer(11.0, self.block_hole_ready, args)
+            # comp.AddTimer(1.0, self.block_hole_ready, args)  # 测试用
 
     def block_hole_ready(self, args):
 
@@ -187,6 +198,15 @@ class BlackHoleServerSystem(ServerSystem):
                             continue
                         # 每次往存储坐标的list末尾添加方块坐标，供后续销毁方块并创建掉落物使用
                         self.coordinate_list.append((x + dx, y + dy, z + dz))
+
+        # 注意：此部分代码功能是更新给客户端最新的黑洞吸收半径（注意）
+        # 广播事件，给客户端发送事件数据，使玩家也受黑洞效果影响
+        eventData = self.CreateEventData()
+        eventData['ar'] = ar
+        eventData['x'] = x
+        eventData['y'] = y
+        eventData['z'] = z
+        self.BroadcastToAllClient(modConfig.PlayerAboutEvent, eventData)
 
     # 效果不好
     def set_new_block_range_test(self, ar, x, y, z):
@@ -345,23 +365,19 @@ class BlackHoleServerSystem(ServerSystem):
         # 获取到的指定正方形范围内所有entityId
         entity_ids = comp.GetEntitiesInSquareArea(None, startPos, endPos, 0)
 
-        # ---------------去除玩家ID，去除黑洞对玩家的效果-----------------
-        # if player_id in entity_ids:
-        #     entity_ids.remove(player_id)
-
         # print '-----------------------------> attract =', len(entity_ids)
 
         for entityId in entity_ids:
 
-            # 对范围内实体进行区分，将生物实体和掉落物实体区分开，分别进行向量位移计算
+            # 对范围内实体进行区分，将生物实体和掉落物实体a区分开，分别进行向量位移计算
             type_comp = serverApi.GetEngineCompFactory().CreateEngineType(entityId)
             # 获取实体类型
             entityType = type_comp.GetEngineType()
-            # if not entityType:
-            #     continue
 
-            # print '666 ------> ', serverApi.GetEngineCompFactory().CreatePos(player_id).GetPos()
-            # print '666 ------> entityType', serverApi.GetEngineCompFactory().CreateEngineType(player_id).GetEngineType()
+            # 过滤
+            if not entityType:
+                continue
+
             # 获取实体位置坐标
             comp = serverApi.GetEngineCompFactory().CreatePos(entityId)
             entityPos = comp.GetPos()

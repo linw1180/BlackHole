@@ -29,6 +29,17 @@ class BlackHoleClientSystem(ClientSystem):
         self.mDeleteButtonUiNode = None
         self.mCloseMsgUiNode = None
 
+        # tick计数
+        self.tickCount = 0
+
+        # 初始化来自服务端的黑洞数据
+        # 初始化黑洞吸收半径
+        self.ar = 0
+        # 初始化黑洞位置坐标
+        self.x = 0
+        self.y = 0
+        self.z = 0
+
         # 初始化时进行设备检查，自动切换鼠标和触控
         comp = clientApi.GetEngineCompFactory().CreateGame(clientApi.GetLevelId())
         # ret ==> 0：Window；1：IOS；2：Android；-1：其他
@@ -44,112 +55,78 @@ class BlackHoleClientSystem(ClientSystem):
 
     def ListenEvent(self):
         self.ListenForEvent(clientApi.GetEngineNamespace(), clientApi.GetEngineSystemName(),
-                            modConfig.UiInitFinishedEvent, self, self.OnUIInitFinished)
-        self.ListenForEvent(clientApi.GetEngineNamespace(), clientApi.GetEngineSystemName(),
                             modConfig.OnScriptTickClient, self, self.OnScriptTickClient)
         self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.CreateEffectEvent, self, self.OnCreateEffect)
         self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.SetSfxScaleEvent, self, self.OnSetSfxScale)
         self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.ShowDeleteButtonEvent, self, self.OnShowDeleteButton)
         self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.RemoveButtonUiEvent, self, self.OnRemoveButtonUi)
+        self.ListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.PlayerAboutEvent, self, self.OnPlayerAbout)
 
     def UnListenEvent(self):
-        self.UnListenForEvent(clientApi.GetEngineNamespace(), clientApi.GetEngineSystemName(),
-                              modConfig.UiInitFinishedEvent, self, self.OnUIInitFinished)
         self.UnListenForEvent(clientApi.GetEngineNamespace(), clientApi.GetEngineSystemName(),
                               modConfig.OnScriptTickClient, self, self.OnScriptTickClient)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.CreateEffectEvent, self, self.OnCreateEffect)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.SetSfxScaleEvent, self, self.OnSetSfxScale)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.ShowDeleteButtonEvent, self, self.OnShowDeleteButton)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.RemoveButtonUiEvent, self, self.OnRemoveButtonUi)
+        self.UnListenForEvent(modConfig.ModName, modConfig.ModServerSystemName, modConfig.PlayerAboutEvent, self, self.OnPlayerAbout)
+
+    def OnPlayerAbout(self, args):
+        """
+        接受来自服务端的数据：黑洞吸收半径 ar 和黑洞位置坐标 x, y, z, 并存入成员变量中（黑洞创建后才产生数据）
+        """
+        if args['ar']:
+            self.ar = args['ar']
+        if args['x']:
+            self.x = args['x']
+        if args['y']:
+            self.y = args['y']
+        if args['z']:
+            self.z = args['z']
 
     def OnScriptTickClient(self):
         """
         服务器tick时触发,1秒有30个tick
         """
+        self.tickCount += 1
+        if self.tickCount % 2 == 0:
+            self.AttractPlayer()
 
+    def AttractPlayer(self):
+        """
+        黑洞对玩家的牵引和杀死功能实现
+        """
+        # 限制：只有在黑洞被创建并启动后，才对玩家有效果
+        if self.ar and self.x and self.y and self.z:
 
-    def AttractPlayer(self, x, y, ):
+            # -------------- 控制玩家进入黑洞吸收范围后，可被黑洞吸引，向黑洞中心位移 ------------
+            # 玩家ID
+            localPlayerId = clientApi.GetLocalPlayerId()
+            # 玩家位置
+            comp = clientApi.GetEngineCompFactory().CreatePos(localPlayerId)
+            playerPos = comp.GetPos()
+            playerPosX = playerPos[0]
+            playerPosY = playerPos[1]
+            playerPosZ = playerPos[2]
 
+            # 获取黑洞吸收半径范围内玩家到黑洞中心的距离
+            num = (self.x - playerPosX) ** 2 + (self.y - playerPosY) ** 2 + (self.z - playerPosZ) ** 2
+            # 开平方，获取玩家到黑洞中心的距离
+            distance = math.sqrt(num)
 
-        # # 使玩家向准星的方向突进一段距离
-        # localPlayerId = clientApi.GetLocalPlayerId()
-        # rotComp = clientApi.GetEngineCompFactory().CreateRot(localPlayerId)
-        # rot = rotComp.GetRot()
-        # x, y, z = clientApi.GetDirFromRot(rot)
-        # comp = clientApi.GetEngineCompFactory().CreateActorMotion(localPlayerId)
-        # motionComp.SetMotion((x * 5, y * 5, z * 5))
-        #
-        # levelId = clientApi.GetLevelId()
-        # comp = clientApi.GetEngineCompFactory().CreateGame(levelId)
-        #
-        # # 正方形范围起始位置（正式用）
-        # startPos = ((x - self.attract_radius), (y - self.attract_radius), (z - (math.sqrt(2) * self.attract_radius)))
-        # # 正方形范围结束位置（正式用）
-        # endPos = ((x + self.attract_radius), (y + self.attract_radius), (z + (math.sqrt(2) * self.attract_radius)))
-        #
-        # # 获取到的指定正方形范围内所有entityId
-        # entity_ids = comp.GetEntitiesInSquareArea(None, startPos, endPos, 0)
-        #
-        #
-        # for entityId in entity_ids:
-        #
-        #     # 对范围内实体进行区分，将生物实体和掉落物实体区分开，分别进行向量位移计算
-        #     type_comp = serverApi.GetEngineCompFactory().CreateEngineType(entityId)
-        #     # 获取实体类型
-        #     entityType = type_comp.GetEngineType()
-        #     # 获取实体位置坐标
-        #     comp = serverApi.GetEngineCompFactory().CreatePos(entityId)
-        #     entityPos = comp.GetPos()
-        #     if entityPos:
-        #         entityPosX = entityPos[0]
-        #         entityPosY = entityPos[1]
-        #         entityPosZ = entityPos[2]
-        #
-        #         # 下面代码实现功能：将黑洞吸收半径范围内的实体吸引过来
-        #         if entityType and entityType == 64:
-        #             # 掉落物实体的向量移动逻辑（最后需要写成可变化的）
-        #             # SetPos接口------------------------
-        #             comp.SetPos(((float(x - entityPosX) / 800) + entityPosX,
-        #                          (float(y - 3 - entityPosY) / 50) + entityPosY,
-        #                          (float(z - entityPosZ) / 800) + entityPosZ))
-        #             pos_z = (float(x - entityPosX) / 800, float(y - entityPosY) / 800, float(z - entityPosZ) / 800)
-        #             # set_motion接口------------------------
-        #             set_motion(entityId, pos_z)
-        #
-        #         else:
-        #             pos_z = (float(x - entityPosX) / 300, float(y - entityPosY) / 300, float(z - entityPosZ) / 300)
-        #             set_motion(entityId, pos_z)
-        #
-        #         # 下面代码实现功能：杀死进入黑洞半径大小范围内的实体
-        #         # 获取黑洞吸收半径范围内所有生物到黑洞中心的距离
-        #         num = (x - entityPosX) ** 2 + (y - entityPosY) ** 2 + (z - entityPosZ) ** 2
-        #         # 开平方，获取生物到黑洞中心的距离
-        #         distance = math.sqrt(num)
-        #         # 杀死进入黑洞半径范围内的实体
-        #         if distance <= self.radius:
-        #             levelId = serverApi.GetLevelId()
-        #             comp = serverApi.GetEngineCompFactory().CreateGame(levelId)
-        #             # ret = comp.KillEntity(entityId)
-        #             ret = self.DestroyEntity(entityId)
-        #             if ret:
-        #                 self.kill_count += 1
-        #
-        #                 if self.kill_count != 0 and self.kill_count % 300 == 0:
-        #                     # 设置半径变化（每次扩增1格）
-        #                     self.radius += 1
-        #                     # --------begin----------  创建事件数据，广播自定义事件，通知客户端修改黑洞序列帧特效大小
-        #                     eventData = self.CreateEventData()
-        #                     eventData['scale'] = self.radius
-        #                     self.BroadcastToAllClient(modConfig.SetSfxScaleEvent, eventData)
-        #                     # --------over----------
-        #                     # 设置吸收半径（每次扩大为原半径大小的三倍；注意：原半径每次扩增1格）
-        #                     self.attract_radius = self.radius * 3
-        #                     # 调用函数往存储位置坐标的list中添加新坐标，以便在tick中继续销毁方块创建掉落物
-        #                     self.set_new_block_range(self.attract_radius, self.dict['x'], self.dict['y'],
-        #                                              self.dict['z'])
-        #                     # 待加：此处还需设置吸收速度随半径大小的变化规则（“当前大小的三倍？”）
-        pass
+            # ---------------------- 黑洞吸收范围内，牵引玩家功能的实现 ------------------------------
+            # 设置给玩家的移动向量大小
+            pos_p = (float(self.x - playerPosX) / 200, float(self.y - playerPosY) / 200, float(self.z - playerPosZ) / 200)
+            # 玩家进入黑洞吸收范围，则被黑洞吸引，被黑洞牵引
+            if distance <= self.ar:
+                motionComp = clientApi.GetEngineCompFactory().CreateActorMotion(localPlayerId)
+                motionComp.SetMotion(pos_p)
 
+            # ---------------------- 玩家进入黑洞半径，被黑洞杀死功能的实现 ------------------------------
+            if distance <= self.ar / 3:
+                data = self.CreateEventData()
+                data['playerId'] = localPlayerId
+                self.NotifyToServer(modConfig.KillPlayerEvent, data)
 
     def ShowDeleteMsg(self):
         """
@@ -179,20 +156,6 @@ class BlackHoleClientSystem(ClientSystem):
                                     modConfig.DeleteButtonUiScreenDef)
         # 创建UI
         self.mDeleteButtonUiNode = clientApi.CreateUI(modConfig.ModName, modConfig.DeleteButtonUiName, {"isHud": 1})
-
-    # 初始化创建UI（在此处不需要，其他地方可套用里边注册UI方式）
-    def OnUIInitFinished(self, args):
-        print '-------------------------------------------------------------------------------- args =', args
-        # # 注册UI 详细解释参照《UI API》
-        # flag = clientApi.RegisterUI(modConfig.ModName, modConfig.BlackHoleUiName, modConfig.BlackHoleUiPyClsPath,
-        #                      modConfig.BlackHoleUiScreenDef)
-        # print ("=================flag==================", flag)
-        # # 创建UI
-        # self.mBlackHoleUiNode = clientApi.CreateUI(modConfig.ModName, modConfig.BlackHoleUiName, {"isHud": 1})
-        # print ("self.mBlackHoleUiNode", self.mBlackHoleUiNode)
-        # if self.mBlackHoleUiNode:
-        #     print ("=============if===========")
-            # self.mBlackHoleUiNode.Init()
 
     def OnSetSfxScale(self, args):
         """

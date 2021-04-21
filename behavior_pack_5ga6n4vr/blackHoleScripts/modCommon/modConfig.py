@@ -19,6 +19,7 @@ UiInitFinishedEvent = "UiInitFinished"
 OnScriptTickClient = 'OnScriptTickClient'
 # custom
 RemoveAllAttractEvent = 'RemoveAllAttractEvent'
+KillPlayerEvent = 'KillPlayerEvent'
 
 # Server Event
 # engine
@@ -30,6 +31,7 @@ CreateEffectEvent = 'CreateEffectEvent'
 SetSfxScaleEvent = 'SetSfxScaleEvent'
 ShowDeleteButtonEvent = 'ShowDeleteButtonEvent'
 RemoveButtonUiEvent = 'RemoveButtonUiEvent'
+PlayerAboutEvent = 'PlayerAboutEvent'
 
 # UI
 DeleteButtonUiName = "deleteButtonUi"
