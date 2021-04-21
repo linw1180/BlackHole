@@ -30,8 +30,8 @@
       "$default_texture" : "textures/netease/common/button/default",
       "$hover_texture" : "textures/netease/common/button/hover",
       "$is_new_nine_slice" : false,
-      "$label_color" : [ 1, 1, 1 ],
-      "$label_font_scale_factor" : 1.169999957084656,
+      "$label_color" : [ 0.0, 0.0, 0.0 ],
+      "$label_font_scale_factor" : 0.8199999928474426,
       "$label_font_size" : "normal",
       "$label_layer" : 3,
       "$label_offset" : [ 0, 0 ],
@@ -45,8 +45,8 @@
       "$pressed_texture" : "textures/netease/common/button/pressed",
       "$texture_layer" : 2,
       "alpha" : 1.0,
-      "anchor_from" : "center",
-      "anchor_to" : "center",
+      "anchor_from" : "bottom_middle",
+      "anchor_to" : "bottom_middle",
       "bindings" : [
          {
             "binding_collection_name" : "",
@@ -74,33 +74,12 @@
       "draggable" : "not_draggable",
       "enabled" : true,
       "is_handle_button_move_event" : true,
-      "layer" : 1,
-      "max_size" : [ 0, 0 ],
+      "layer" : 2,
+      "max_size" : [ 0.0, 0.0 ],
       "min_size" : [ 0, 0 ],
-      "offset" : [ 0.0, -1.50 ],
+      "offset" : [ "0.0%+0.0px", "-15.0%+-11.0px" ],
       "propagate_alpha" : false,
-      "size" : [ 90, 43 ],
-      "visible" : true
-   },
-   "deleteButtonPanel" : {
-      "alpha" : 1.0,
-      "anchor_from" : "center",
-      "anchor_to" : "center",
-      "clip_offset" : [ 0, 0 ],
-      "clips_children" : false,
-      "controls" : [
-         {
-            "deleteButton@deleteButtonUi.deleteButton" : {}
-         }
-      ],
-      "enabled" : true,
-      "layer" : 1,
-      "max_size" : [ 0, 0 ],
-      "min_size" : [ 0, 0 ],
-      "offset" : [ 0, 0 ],
-      "propagate_alpha" : false,
-      "size" : [ 100, 100 ],
-      "type" : "panel",
+      "size" : [ 58, 19 ],
       "visible" : true
    },
    "hover" : {
@@ -120,7 +99,7 @@
       "always_accepts_input" : false,
       "controls" : [
          {
-            "deleteButtonPanel@deleteButtonUi.deleteButtonPanel" : {}
+            "deleteButton@deleteButtonUi.deleteButton" : {}
          }
       ],
       "force_render_below" : false,

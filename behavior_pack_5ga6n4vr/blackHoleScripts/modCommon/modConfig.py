@@ -20,6 +20,7 @@ OnScriptTickClient = 'OnScriptTickClient'
 # custom
 RemoveAllAttractEvent = 'RemoveAllAttractEvent'
 KillPlayerEvent = 'KillPlayerEvent'
+ShowDeleteSuccessMsgEvent = 'ShowDeleteSuccessMsgEvent'
 
 # Server Event
 # engine

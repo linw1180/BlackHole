@@ -20,7 +20,7 @@ class DeleteButtonUiScreen(ScreenNode):
         # 当前客户端的玩家Id
         self.mPlayerId = clientApi.GetLocalPlayerId()
 
-        self.mDeleteButton = "/deleteButtonPanel/deleteButton"
+        self.mDeleteButton = "/deleteButton"
         # self.mMsg = '/successMsgPanel/msg'
         # self.mCloseButton = '/successMsgPanel/closeButton'
 
@@ -49,8 +49,8 @@ class DeleteButtonUiScreen(ScreenNode):
         # ----------------- 黑洞终止后，还需要将删除按钮UI去除 --------------------
         blackHoleClientSystem.mDeleteButtonUiNode.SetRemove()
 
-        # ----------------- 黑洞终止后，还需要展现删除成功的信息给玩家 --------------------
-        blackHoleClientSystem.ShowDeleteMsg()
+        # 给服务端广播事件，通知服务端在左上角消息列表打印“黑洞已经全部清除”的消息
+        blackHoleClientSystem.NotifyToServer(modConfig.ShowDeleteSuccessMsgEvent, args)
 
         # ----------------- 黑洞终止后，需要将黑洞数据初始化，消除黑洞对玩家的影响（初始化数据后，玩家就不符合牵引条件了） --------------------
         blackHoleClientSystem.ar = 0

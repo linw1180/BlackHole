@@ -140,16 +140,6 @@ class BlackHoleClientSystem(ClientSystem):
                 data['playerId'] = localPlayerId
                 self.NotifyToServer(modConfig.KillPlayerEvent, data)
 
-    def ShowDeleteMsg(self):
-        """
-        删除所有黑洞后，给玩家信息提示，展示删除成功的页面
-        """
-        # 注册信息提示和关闭按钮的UI
-        clientApi.RegisterUI(modConfig.ModName, modConfig.CloseMsgUiName, modConfig.CloseMsgUiPyClsPath,
-                                    modConfig.CloseMsgUiScreenDef)
-        # 创建UI
-        self.mCloseMsgUiNode = clientApi.CreateUI(modConfig.ModName, modConfig.CloseMsgUiName, {"isHud": 1})
-
     def OnRemoveButtonUi(self, args):
         """
         当前若不是手持黑洞终止器，就不展现(删除)删除黑洞按钮UI界面和删除成功提示UI页面

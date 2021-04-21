@@ -56,6 +56,8 @@ class BlackHoleServerSystem(ServerSystem):
                             self, self.OnRemoveAllAttract)
         self.ListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.KillPlayerEvent,
                             self, self.OnKillPlayer)
+        self.ListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.ShowDeleteSuccessMsgEvent,
+                            self, self.OnShowDeleteSuccessMsg)
 
     def UnListenEvent(self):
         self.UnListenForEvent(Namespace, SystemName, modConfig.ServerItemUseOnEvent, self, self.OnServerItemUseOnEvent)
@@ -65,7 +67,16 @@ class BlackHoleServerSystem(ServerSystem):
         self.UnListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.RemoveAllAttractEvent,
                             self, self.OnRemoveAllAttract)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.KillPlayerEvent,
+                              self, self.OnShowDeleteSuccessMsg)
+        self.UnListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.ShowDeleteSuccessMsgEvent,
                               self, self.OnKillPlayer)
+
+    def OnShowDeleteSuccessMsg(self, args):
+        """
+        OnShowDeleteSuccessMsgEvent事件的回调函数，响应删除按钮的请求，在左上角打印输出“黑洞已经全部清除”的消息
+        """
+        comp = serverApi.GetEngineCompFactory().CreateMsg(self.dict['playerId'])
+        comp.NotifyOneMessage(self.dict['playerId'], "黑洞已经全部清除！", "§4")
 
     def OnKillPlayer(self, args):
         """
@@ -345,7 +356,7 @@ class BlackHoleServerSystem(ServerSystem):
             self.show_message(self.dict['playerId'], self.test)
             self.test -= 1
 
-        if self.last_message_switch and self.count % 330 == 0:
+        if self.last_message_switch and self.count == 330:
             self.show_last_message(self.dict['playerId'])
 
         # tick 调用
