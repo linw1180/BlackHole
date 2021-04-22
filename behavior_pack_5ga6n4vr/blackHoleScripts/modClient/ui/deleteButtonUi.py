@@ -3,6 +3,7 @@
 # 从客户端API中拿到我们需要的ViewBinder / ViewRequest / ScreenNode
 import mod.client.extraClientApi as clientApi
 import mod.server.extraServerApi as serverApi
+from mod.common.minecraftEnum import TouchEvent
 
 from blackHoleScripts.modClient.clientSystem import BlackHoleClientSystem
 from blackHoleScripts.modCommon import modConfig
@@ -35,25 +36,27 @@ class DeleteButtonUiScreen(ScreenNode):
         """
         点击删除按钮：实现删除黑洞特效、取消黑洞吸引效果，达到终止黑洞的效果
         """
-        # 获取客户端System（以便下边可以通过客户端系统调用系统中相关方法和变量）
-        blackHoleClientSystem = clientApi.GetSystem(modConfig.ModName, modConfig.ModClientSystemName)
+        if args['TouchEvent'] == TouchEvent.TouchUp:
 
-        # ----------------- 销毁黑洞特效 --------------------
-        # 通过调用客户端系统方法，销毁黑洞序列帧特效
-        blackHoleClientSystem.DestroyEntity(blackHoleClientSystem.frameEntityId)
+            # 获取客户端System（以便下边可以通过客户端系统调用系统中相关方法和变量）
+            blackHoleClientSystem = clientApi.GetSystem(modConfig.ModName, modConfig.ModClientSystemName)
 
-        # ----------------- 取消黑洞吸引效果 --------------------
-        # 给服务端广播事件，通知服务端去除黑洞吸引效果
-        blackHoleClientSystem.NotifyToServer(modConfig.RemoveAllAttractEvent, args)
+            # ----------------- 销毁黑洞特效 --------------------
+            # 通过调用客户端系统方法，销毁黑洞序列帧特效
+            blackHoleClientSystem.DestroyEntity(blackHoleClientSystem.frameEntityId)
 
-        # ----------------- 黑洞终止后，还需要将删除按钮UI去除 --------------------
-        blackHoleClientSystem.mDeleteButtonUiNode.SetRemove()
+            # ----------------- 取消黑洞吸引效果 --------------------
+            # 给服务端广播事件，通知服务端去除黑洞吸引效果
+            blackHoleClientSystem.NotifyToServer(modConfig.RemoveAllAttractEvent, args)
 
-        # 给服务端广播事件，通知服务端在左上角消息列表打印“黑洞已经全部清除”的消息
-        blackHoleClientSystem.NotifyToServer(modConfig.ShowDeleteSuccessMsgEvent, args)
+            # ----------------- 黑洞终止后，还需要将删除按钮UI去除 --------------------
+            blackHoleClientSystem.mDeleteButtonUiNode.SetRemove()
 
-        # ----------------- 黑洞终止后，需要将黑洞数据初始化，消除黑洞对玩家的影响（初始化数据后，玩家就不符合牵引条件了） --------------------
-        blackHoleClientSystem.ar = 0
-        blackHoleClientSystem.x = 0
-        blackHoleClientSystem.y = 0
-        blackHoleClientSystem.z = 0
+            # 给服务端广播事件，通知服务端在左上角消息列表打印“黑洞已经全部清除”的消息
+            blackHoleClientSystem.NotifyToServer(modConfig.ShowDeleteSuccessMsgEvent, args)
+
+            # ----------------- 黑洞终止后，需要将黑洞数据初始化，消除黑洞对玩家的影响（初始化数据后，玩家就不符合牵引条件了） --------------------
+            blackHoleClientSystem.ar = 0
+            blackHoleClientSystem.x = 0
+            blackHoleClientSystem.y = 0
+            blackHoleClientSystem.z = 0

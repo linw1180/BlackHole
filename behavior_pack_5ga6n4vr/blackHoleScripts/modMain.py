@@ -18,14 +18,34 @@ class BlackHole(object):
         logger.info("=== init BlackHole Mod ===")
 
     # 初始化服务端系统
+    # @Mod.InitServer()
+    # def server_init(self):
+    #     logger.info("========================== init server ==================================")
+    #     serverApi.RegisterSystem(ModName, ModServerSystemName, ModServerSystemPath)
+    #
+    # # 初始化客户端系统
+    # @Mod.InitClient()
+    # def client_init(self):
+    #     logger.info("========================== init client ==================================")
+    #     clientApi.RegisterSystem(ModName, ModClientSystemName, ModClientSystemPath)
+
+    # 初始化服务端系统
     @Mod.InitServer()
     def server_init(self):
-        logger.info("========================== init server ==================================")
+        serverApi.StartProfile()
         serverApi.RegisterSystem(ModName, ModServerSystemName, ModServerSystemPath)
 
     # 初始化客户端系统
     @Mod.InitClient()
     def client_init(self):
-        logger.info("========================== init client ==================================")
+        clientApi.StartProfile()
         clientApi.RegisterSystem(ModName, ModClientSystemName, ModClientSystemPath)
+
+    @Mod.DestroyServer()
+    def destroy_server(self):
+        serverApi.StopProfile('{}Server.svg'.format(ModName))
+
+    @Mod.DestroyClient()
+    def destroy_client(self):
+        clientApi.StopProfile('{}Client.svg'.format(ModName))
 

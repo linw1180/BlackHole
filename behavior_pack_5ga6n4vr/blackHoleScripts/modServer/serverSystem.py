@@ -12,6 +12,7 @@ ServerSystem = serverApi.GetServerSystemCls()
 SystemName = serverApi.GetEngineSystemName()
 Namespace = serverApi.GetEngineNamespace()
 
+
 # 服务端系统
 class BlackHoleServerSystem(ServerSystem):
 
@@ -36,8 +37,10 @@ class BlackHoleServerSystem(ServerSystem):
         # self.attract_radius = 18
         self.attract_radius = self.radius * 3
 
-        # 存储坐标的list
+        # 存储待删除的坐标的list（其实用pop_list命名更准确，但用的地方太多，现在改过来容易出错，暂时就这样命名了）
+        # 此list不断在发生数据变化，list头部不断pop，尾部不断append
         self.coordinate_list = []
+        self.pos_set = set()
 
         self.time_count = 0
         self.test = 10
@@ -52,6 +55,10 @@ class BlackHoleServerSystem(ServerSystem):
         # 黑洞吸收范围内的所有实体ID（后边作为限制条件使用）
         # 初始化
         self.entity_ids = []
+
+        # 初始化定时器对象
+        self.func_timer = None
+        self.msg_timer = None
 
     def ListenEvent(self):
         # self.DefineEvent(modConfig.CreateEffectEvent)  此定义事件已过期，此处写不写都无作用
@@ -72,7 +79,7 @@ class BlackHoleServerSystem(ServerSystem):
         self.UnListenForEvent(Namespace, SystemName, modConfig.OnCarriedNewItemChangedServerEvent, self,
                               self.OnCarriedNewItemChangedServer)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.RemoveAllAttractEvent,
-                            self, self.OnRemoveAllAttract)
+                              self, self.OnRemoveAllAttract)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.KillPlayerEvent,
                               self, self.OnShowDeleteSuccessMsg)
         self.UnListenForEvent(modConfig.ModName, modConfig.ModClientSystemName, modConfig.ShowDeleteSuccessMsgEvent,
@@ -84,6 +91,16 @@ class BlackHoleServerSystem(ServerSystem):
         """
         comp = serverApi.GetEngineCompFactory().CreateMsg(self.dict['playerId'])
         comp.NotifyOneMessage(self.dict['playerId'], "黑洞已经全部清除！", "§4")
+
+        # 取消两个定时器
+        if self.msg_timer and self.func_timer:
+            print '11111111111111 self.func_timer =', self.func_timer
+            print '11111111111111 self.msg_timer =', self.msg_timer
+            comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
+            comp.CancelTimer(self.func_timer)
+            comp.CancelTimer(self.msg_timer)
+        self.message_switch = False
+        self.last_message_switch = False
 
     def OnKillPlayer(self, args):
         """
@@ -109,7 +126,7 @@ class BlackHoleServerSystem(ServerSystem):
             eventData = self.CreateEventData()
             eventData['newItemName'] = args['newItemName']
             # 广播事件到客户端，通知客户端展现删除按钮
-            self.BroadcastToAllClient(modConfig.ShowDeleteButtonEvent, eventData)
+            self.NotifyToClient(args['playerId'], modConfig.ShowDeleteButtonEvent, eventData)
         else:
             eventData = self.CreateEventData()
             eventData['newItemName'] = args['newItemName']
@@ -126,7 +143,6 @@ class BlackHoleServerSystem(ServerSystem):
         item_dict = comp.GetPlayerItem(serverApi.GetMinecraftEnum().ItemPosType.CARRIED, 0)
         # 如果玩家手持物品为黑洞制造器，则进行相关操作
         if item_dict['itemName'] == 'black_hole:black_hole_create':
-
             # 创建事件数据
             evenData = self.CreateEventData()
             evenData["playerId"] = args["entityId"]
@@ -140,6 +156,14 @@ class BlackHoleServerSystem(ServerSystem):
             self.dict['y'] = args["y"]
             self.dict['z'] = args["z"]
             self.dict['blockName'] = args['blockName']
+
+            # 取消两个定时器
+            if self.msg_timer and self.func_timer:
+                comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
+                comp.CancelTimer(self.func_timer)
+                comp.CancelTimer(self.msg_timer)
+            self.message_switch = False
+            self.last_message_switch = False
 
             # ---------------------------------- 初始化数据 --------------------------------
             # 恢复倒数时初始数据为10（避免二次创建黑洞，倒计时读数错误）
@@ -159,7 +183,7 @@ class BlackHoleServerSystem(ServerSystem):
             # self.attract_radius = 18
             self.attract_radius = self.radius * 3
 
-            # 存储坐标的list
+            # 存储待删除的坐标的list
             self.coordinate_list = []
 
             self.time_count = 0
@@ -185,10 +209,12 @@ class BlackHoleServerSystem(ServerSystem):
 
             # 延时10秒启动黑洞的相关功能
             comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
-            comp.AddTimer(11.0, self.block_hole_ready, args)
+            self.func_timer = comp.AddTimer(11.0, self.block_hole_ready, args)
             # comp.AddTimer(1.0, self.block_hole_ready, args)  # 测试用
             # 延时到倒计时10秒结束后，打印黑洞正在吸收物品的提示信息
-            comp.AddTimer(12.0, self.last_message_func)
+            self.msg_timer = comp.AddTimer(12.0, self.last_message_func)
+            # self.message_switch = False
+            # self.last_message_switch = False
 
     def block_hole_ready(self, args):
 
@@ -198,7 +224,7 @@ class BlackHoleServerSystem(ServerSystem):
         # 每次使用黑洞制造器创建黑洞前
         # 重新关闭使用tick开关控制的函数，防止重新创建新黑洞后，旧黑洞开启的tick开关控制的函数还在执行
         self.flag = False
-        # 清空坐标数组，处理脏数据，便于后边新黑洞初始吸收范围内方块的销毁与掉落物的创建
+        # 清空待删除的坐标数组，处理脏数据，便于后边新黑洞初始吸收范围内方块的销毁与掉落物的创建
         self.coordinate_list = []
         # 清空杀死的实体计数
         self.kill_count = 0
@@ -235,6 +261,7 @@ class BlackHoleServerSystem(ServerSystem):
         """
         获取指定吸收半径范围内所有坐标，添加到list末尾（获取的是球形范围内坐标）
         """
+        pos_list = []
         for r in xrange(ar):
             for dx in xrange(-r, r + 1):
                 for dy in xrange(-r, r + 1):
@@ -243,24 +270,72 @@ class BlackHoleServerSystem(ServerSystem):
                             continue
                         if ar ** 2 < Vector3(dx, dy, dz).LengthSquared():
                             continue
-                        # 每次往存储坐标的list末尾添加方块坐标，供后续销毁方块并创建掉落物使用
-                        self.coordinate_list.append((x + dx, y + dy, z + dz))
+                        # 将初始吸收半径范围坐标存入初始化坐标的list中
+                        pos_list.append((x + dx, y + dy, z + dz))
+
+        self.pos_set = set(pos_list)
+
+        # 将初始吸收半径范围内的坐标添加到待删除的list中
+        self.coordinate_list.extend(pos_list)
 
         # 注意：此部分代码功能是更新给客户端最新的黑洞吸收半径（注意）
         # 广播事件，给客户端发送事件数据，使玩家也受黑洞效果影响
-        eventData = self.CreateEventData()
-        eventData['ar'] = ar
-        eventData['x'] = x
-        eventData['y'] = y
-        eventData['z'] = z
-        self.BroadcastToAllClient(modConfig.PlayerAboutEvent, eventData)
+        self.BroadcastToAllClient(modConfig.PlayerAboutEvent, {'ar': ar, 'x': x, 'y': y, 'z': z})
 
-    # 完美（求两个集合的补集，就是现在需要解决同一界面，掉落物过多导致很容易卡顿的问题）
+    # 最新优化
+    def set_new_block_range_add(self, ar, x, y, z):
+        """
+        获取指定吸收半径范围内所有坐标，添加到list末尾（获取的是球形范围内坐标）
+        """
+        # 存储扩增后新的吸收半径范围内所有坐标
+        # new_pos_list = []
+        add_list = self.count_block_pos(ar, x, y, z)
+
+        # 将扩增后所有新增的坐标添加到待删list中
+        self.coordinate_list.extend(add_list)
+        self.pos_set.update(add_list)
+
+        # 注意：此部分代码功能是更新给客户端最新的黑洞吸收半径（注意）
+        # 广播事件，给客户端发送事件数据，使玩家也受黑洞效果影响
+        self.BroadcastToAllClient(modConfig.PlayerAboutEvent, {'ar': ar, 'x': x, 'y': y, 'z': z})
+
+    def count_block_pos(self, ar, x, y, z):
+        add_list = []
+        for r in xrange(int(self.attract_radius / math.sqrt(3)), ar):
+            for dx in xrange(-r, r + 1):
+                for dy in xrange(-r, r + 1):
+                    for dz in xrange(-r, r + 1):
+                        block_pos = (x + dx, y + dy, z + dz)
+                        if self.check_block_pos(block_pos, ar, r, dx, dy, dz):
+                            add_list.append(block_pos)
+        return add_list
+
+    def check_block_pos(self, block_pos, ar, r, dx, dy, dz):
+        if self._check_pos_exists(block_pos):
+            return False
+        if self._check_lenght(r, dx, dy, dz):
+            return False
+        if self._check_squared_length(ar, dx, dy, dz):
+            return False
+
+        return True
+
+    def _check_pos_exists(self, block_pos):
+        return block_pos in self.pos_set
+
+    def _check_lenght(self, r, dx, dy, dz):
+        if abs(dx) < r and abs(dy) != r and abs(dz) != r:
+            return True
+
+    def _check_squared_length(self, ar, dx, dy, dz):
+        return ar ** 2 < Vector3(dx, dy, dz).LengthSquared()
+
+    # 完美（求两个集合的补集，就是现在需要解决同一界面，每次扩增导致卡顿的问题）
     def set_new_block_range_last(self, ar, x, y, z):
         """
         获取新增的环形球范围内所有坐标，添加到list末尾（圆心相同，大半径球比小半径球多出的那部分坐标）
         """
-        self.alist = []
+        a_list = []
         for r in xrange(ar):
             for dx in xrange(-r, r + 1):
                 for dy in xrange(-r, r + 1):
@@ -270,9 +345,9 @@ class BlackHoleServerSystem(ServerSystem):
                         if ar ** 2 < Vector3(dx, dy, dz).LengthSquared():
                             continue
                         # 每次往存储坐标的list末尾添加方块坐标，供后续销毁方块并创建掉落物使用
-                        self.alist.append((x + dx, y + dy, z + dz))
+                        a_list.append((x + dx, y + dy, z + dz))
 
-        self.blist = []
+        b_list = []
         for r in xrange(ar - 3):
             for dx in xrange(-r, r + 1):
                 for dy in xrange(-r, r + 1):
@@ -282,57 +357,12 @@ class BlackHoleServerSystem(ServerSystem):
                         if (ar - 3) ** 2 < Vector3(dx, dy, dz).LengthSquared():
                             continue
                         # 每次往存储坐标的list末尾添加方块坐标，供后续销毁方块并创建掉落物使用
-                        self.blist.append((x + dx, y + dy, z + dz))
+                        b_list.append((x + dx, y + dy, z + dz))
 
-        self.clist = [i for i in self.alist if i not in self.blist]
-        for pos in self.clist:
-            self.coordinate_list.append(pos)
-
-        # 注意：此部分代码功能是更新给客户端最新的黑洞吸收半径（注意）
-        # 广播事件，给客户端发送事件数据，使玩家也受黑洞效果影响
-        eventData = self.CreateEventData()
-        eventData['ar'] = ar
-        eventData['x'] = x
-        eventData['y'] = y
-        eventData['z'] = z
-        self.BroadcastToAllClient(modConfig.PlayerAboutEvent, eventData)
-
-    # 效果不好（非常卡）
-    def set_new_block_range_test(self, ar, x, y, z):
-
-        # 获取正方形范围内，球形范围外的坐标，添加到坐标数组中
-        ar = ar - 3  # 删除原先半径球和方形之间多余的坐标
-        for nx in range(x - ar, x + ar):
-            for ny in range(y - ar, y + ar):
-                for nz in range(z - ar, z + ar):
-                    if ((nx - x) ** 2 + (ny - y) ** 2 + (nz - z) ** 2) > ar ** 2:
-                        # 获取坐标信息，存入全局list中
-                        num = nx ** 2 + ny ** 2 + nz ** 2
-                        self.num_list.append(num)
-                        blockPos = (nx, ny, nz)
-                        self.temp_list.append(blockPos)
-                        # 每次往list末尾添加元素
-                        # self.coordinate_list.append(blockPos)
-        self.num_list.sort()
-        for n in self.num_list:
-            for m in self.temp_list:
-                if m[0]**2 + m[1]**2 + m[2]**2 == n:
-                    # print 'n ===========================', n
-                    # print 'm --------------------------------------', m
-                    self.coordinate_list.append(m)
-
-        # 获取扩增后新加的球上的坐标，添加到坐标数组中
-        ar = ar + 3  # 删除扩增半径的球坐标
-        for r in xrange(ar - 3, ar):
-            for dx in xrange(-r, r + 1):
-                for dy in xrange(-r, r + 1):
-                    for dz in xrange(-r, r + 1):
-                        if abs(dx) < r and abs(dy) != r and abs(dz) != r:
-                            continue
-                        if ar ** 2 < Vector3(dx, dy, dz).LengthSquared():
-                            continue
-                        # 每次往存储坐标的list末尾添加方块坐标，供后续销毁方块并创建掉落物使用
-                        self.coordinate_list.append((x + dx, y + dy, z + dz))
+        c_list = [i for i in a_list if i not in b_list]
+        # for pos in c_list:
+        #     self.coordinate_list.append(pos)
+        self.coordinate_list.extend(c_list)
 
         # 注意：此部分代码功能是更新给客户端最新的黑洞吸收半径（注意）
         # 广播事件，给客户端发送事件数据，使玩家也受黑洞效果影响
@@ -342,69 +372,6 @@ class BlackHoleServerSystem(ServerSystem):
         eventData['y'] = y
         eventData['z'] = z
         self.BroadcastToAllClient(modConfig.PlayerAboutEvent, eventData)
-
-    # 效果不好（非常乱）
-    def set_new_block_range_after(self, ar, x, y, z):
-        """
-        只获取扩增后范围内新增的方块坐标，并添加到坐标数组末尾（使用集合之间的补集来实现）
-        """
-        list_a = []
-        list_b = []
-        for r in xrange(ar):
-            for dx in xrange(-r, r + 1):
-                for dy in xrange(-r, r + 1):
-                    for dz in xrange(-r, r + 1):
-                        if abs(dx) < r and abs(dy) != r and abs(dz) != r:
-                            continue
-                        if ar ** 2 < Vector3(dx, dy, dz).LengthSquared():
-                            continue
-                        # 将扩增后范围内所有坐标存入list_a中
-                        list_a.append((x + dx, y + dy, z + dz))
-
-        for r in xrange(ar - 3):
-            for dx in xrange(-r, r + 1):
-                for dy in xrange(-r, r + 1):
-                    for dz in xrange(-r, r + 1):
-                        if abs(dx) < r and abs(dy) != r and abs(dz) != r:
-                            continue
-                        if (ar - 3) ** 2 < Vector3(dx, dy, dz).LengthSquared():
-                            continue
-                        # 将扩增后范围内所有坐标存入list_b中
-                        list_b.append((x + dx, y + dy, z + dz))
-
-        # 取补集，获取扩增后新增的坐标，加入到坐标数组末尾
-        set_a = set(list_a)
-        set_b = set(list_b)
-        set_c = set_a.difference(set_b)
-        list_c = list(set_c)
-        for i in list_c:
-            self.coordinate_list.append(i)
-
-        # 注意：此部分代码功能是更新给客户端最新的黑洞吸收半径（注意）
-        # 广播事件，给客户端发送事件数据，使玩家也受黑洞效果影响
-        eventData = self.CreateEventData()
-        eventData['ar'] = ar
-        eventData['x'] = x
-        eventData['y'] = y
-        eventData['z'] = z
-        self.BroadcastToAllClient(modConfig.PlayerAboutEvent, eventData)
-
-    # def set_new_block_range_after(self, r, x, y, z):
-    #     """
-    #     获取指定范围内所有坐标，存入list中，从正方形范围内筛选出球形范围坐标
-    #     """
-    #     # 注意：此半径r为吸收半径
-    #     for nx in range(x - r, x + r + 1):
-    #         for ny in range(y - r, y + r + 1):
-    #             for nz in range(z - r, z + r + 1):
-    #                 if ((nx - x) ** 2 + (ny - y) ** 2 + (nz - z) ** 2) <= r ** 2 and (
-    #                         (nx - x) ** 2 + (ny - y) ** 2 + (nz - z) ** 2) >= (r - 3) ** 2:
-    #                     # 获取坐标信息，存入全局list中
-    #                     blockPos = (nx, ny, nz)
-    #                     # 每次往list末尾添加元素
-    #                     self.coordinate_list.append(blockPos)
-    #
-    #                     self.test += 1
 
     def clear_and_create_block(self, playerId, blockPos):
         """
@@ -416,7 +383,6 @@ class BlackHoleServerSystem(ServerSystem):
         old_blockDict = comp.GetBlockNew(blockPos)
         # 不对空气方块进行操作
         if old_blockDict['name'] != 'minecraft:air':
-
             # 方式一：使用此方式可能会直接破坏掉一些方块，导致实际生成的掉落物比真正的少
             blockDict = {
                 'name': 'minecraft:air'
@@ -452,22 +418,20 @@ class BlackHoleServerSystem(ServerSystem):
         # 黑洞初始特效创建完成后，调用自定义函数，实现以点击方块位置为范围中心，以点击方块为吸引中心，使用向量进行的所有实体牵引功能
         if self.flag and self.dict['playerId'] and self.dict['x'] and self.dict['y'] and self.dict['z']:
             self.biology_attract(self.dict.get('playerId', -1), self.dict.get('x', -1), self.dict.get('y', -1),
-                                self.dict.get('z', -1))
+                                 self.dict.get('z', -1))
 
         # tick中对数据分批处理：将指定位置方块替换为空气，在其位置创建/掉落原实体方块（每次tick执行一部分）
-        if self.flag and self.coordinate_list and self.dict['playerId']:
+        if self.flag and self.coordinate_list and self.dict['playerId'] and self.count % 2:
             # 将黑洞吸收范围内的实体ID数量控制在200以内（防止画面内一次出现太多掉落物，导致卡顿！）
             if len(self.entity_ids) <= 150:
                 for i in range(5):
-                    if self.coordinate_list:
+                    if self.coordinate_list and len(self.coordinate_list) >= 5:
                         player_id = self.dict['playerId']
                         # 每次从list中按从左往右弹，并进行方块的销毁和掉落物的创建
                         blockPos = self.coordinate_list.pop(i)
                         # blockPos = self.coordinate_list.pop()
                         # 调用自定义函数，销毁方块并创建掉落物
                         self.clear_and_create_block(player_id, blockPos)
-
-        # print '----------------------------------------->> list ', len(self.coordinate_list)
 
     # 在tick函数中被调用，满足条件后tick执行，进行对范围内实体的向量牵引
     # 实现以点击方块处黑洞为中心，一定初始吸收半径范围内的吸引功能
@@ -494,7 +458,7 @@ class BlackHoleServerSystem(ServerSystem):
 
         # 将吸收范围内的所有实体ID存入成员变量中
         self.entity_ids = entity_ids
-        print '------------------------------------------------------------------------ l = ', len(entity_ids)
+        # print '------------------------------------------------------------------------ l = ', len(entity_ids)
 
         # print '-----------------------------> attract =', len(entity_ids)
 
@@ -524,7 +488,9 @@ class BlackHoleServerSystem(ServerSystem):
                     comp.SetPos(((float(x - entityPosX) / 800 * 3) + entityPosX,
                                  (float(y - 3 - entityPosY) / 50 * 3) + entityPosY,
                                  (float(z - entityPosZ) / 800 * 3) + entityPosZ))
-                    pos_z = (float(x - entityPosX) / 800 * 3, float(y - entityPosY) / 800 * 3, float(z - entityPosZ) / 800 * 3)
+                    pos_z = (
+                        float(x - entityPosX) / 800 * 3, float(y - entityPosY) / 800 * 3,
+                        float(z - entityPosZ) / 800 * 3)
                     # set_motion接口------------------------
                     set_motion(entityId, pos_z)
 
@@ -570,11 +536,9 @@ class BlackHoleServerSystem(ServerSystem):
                         # limit_count = (2 * math.pi * (self.attract_radius**3 - (self.radius - 3)**3)) / 3
                         # print '-----------------------> limit_count =', limit_count
 
-                        if self.kill_count >= 2800:
-                            pass
-
-
-                        if self.kill_count != 0 and self.kill_count % (((2 + self.change_count) * 100 * self.change_count)) == 0:
+                        if self.kill_count != 0 and self.kill_count % (
+                                ((2 + self.change_count) * 100 * self.change_count)) == 0:
+                            # if self.kill_count != 0 and self.kill_count % 300 == 0:
                             # 使扩增倍数加1（使后续扩增条件均是初始条件的一倍）
                             self.change_count += 1
                             # 设置半径变化（每次扩增1格）
@@ -587,9 +551,8 @@ class BlackHoleServerSystem(ServerSystem):
                             # 设置吸收半径（每次扩大为原半径大小的三倍；注意：原半径每次扩增1格）
                             self.attract_radius = self.radius * 3
                             # 调用函数往存储位置坐标的list中添加新坐标，以便在tick中继续销毁方块创建掉落物
-                            self.set_new_block_range_last(self.attract_radius, self.dict['x'], self.dict['y'],
-                                                           self.dict['z'])
-                            # 待加：此处还需设置吸收速度随半径大小的变化规则（“当前大小的三倍？”）
+                            self.set_new_block_range_add(self.attract_radius, self.dict['x'], self.dict['y'],
+                                                         self.dict['z'])
 
     def Destroy(self):
         self.UnListenEvent()

@@ -21,7 +21,6 @@ class BlackHoleClientSystem(ClientSystem):
         logger.info("========================== Init BlackHoleClientSystem ==================================")
         super(BlackHoleClientSystem, self).__init__(namespace, system_name)  # 现用初始化父类方式
         # ClientSystem.__init__(self, namespace, system_name)  这种方式也可以初始化父类
-        # TODO: 客户端系统功能
         self.ListenEvent()
         # 存储序列帧特效实体ID
         self.frameEntityId = 0
@@ -110,6 +109,8 @@ class BlackHoleClientSystem(ClientSystem):
         """
         # 限制：只有在黑洞被创建并启动后，才对玩家有效果
         if self.ar and self.x and self.y and self.z:
+
+            print '--------------------------- self.ar =', self.ar
 
             # -------------- 控制玩家进入黑洞吸收范围后，可被黑洞吸引，向黑洞中心位移 ------------
             # 玩家ID
