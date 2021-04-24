@@ -93,8 +93,6 @@ class BlackHoleServerSystem(ServerSystem):
 
 		# 取消两个定时器
 		if self.msg_timer and self.func_timer:
-			print '11111111111111 self.func_timer =', self.func_timer
-			print '11111111111111 self.msg_timer =', self.msg_timer
 			comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
 			comp.CancelTimer(self.func_timer)
 			comp.CancelTimer(self.msg_timer)
@@ -212,8 +210,6 @@ class BlackHoleServerSystem(ServerSystem):
 			# comp.AddTimer(1.0, self.block_hole_ready, args)  # 测试用
 			# 延时到倒计时10秒结束后，打印黑洞正在吸收物品的提示信息
 			self.msg_timer = comp.AddTimer(12.0, self.last_message_func)
-			# self.message_switch = False
-			# self.last_message_switch = False
 
 	def block_hole_ready(self, args):
 
@@ -320,6 +316,11 @@ class BlackHoleServerSystem(ServerSystem):
 		return True
 
 	def _check_pos_exists(self, block_pos):
+		"""
+		关键优化点：（之前是因为坐标在list中筛选耗费时间太多，所以导致卡顿）
+		1.将需要筛选的block_pos范围减小
+		2.更换存储坐标容器的数据结构：将筛选目标由数组list换为链表set（数组查找快，链表插入和删除快）
+		"""
 		return block_pos in self.pos_set
 
 	def _check_lenght(self, r, dx, dy, dz):

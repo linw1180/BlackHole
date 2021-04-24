@@ -121,8 +121,6 @@ class BlackHoleClientSystem(ClientSystem):
 		# 限制：只有在黑洞被创建并启动后，才对玩家有效果
 		if self.ar and self.x and self.y and self.z:
 
-			print '--------------------------- self.ar =', self.ar
-
 			# -------------- 控制玩家进入黑洞吸收范围后，可被黑洞吸引，向黑洞中心位移 ------------
 			# 玩家ID
 			localPlayerId = clientApi.GetLocalPlayerId()
